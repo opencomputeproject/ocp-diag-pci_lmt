@@ -1,3 +1,8 @@
+# (c) Meta Platforms, Inc. and affiliates.
+# Use of this source code is governed by an MIT-style
+# license that can be found in the LICENSE file or at
+# https://opensource.org/licenses/MIT.
+
 import json
 import logging
 import time
@@ -30,17 +35,13 @@ class PCIe_LMT_Devices:
         for device in self.device_list:
             if device.primed:
                 for lane in range(device.device_info.width):
-                    device.GotoNormalSettings(
-                        lane=lane, receiver_number=self.receiver_number
-                    )
+                    device.GotoNormalSettings(lane=lane, receiver_number=self.receiver_number)
 
     def clearErrorLogOnDeviceList(self):
         for device in self.device_list:
             if device.primed:
                 for lane in range(device.device_info.width):
-                    device.ClearErrorLog(
-                        lane=lane, receiver_number=self.receiver_number
-                    )
+                    device.ClearErrorLog(lane=lane, receiver_number=self.receiver_number)
 
     def noCommandOnDeviceList(self):
         for device in self.device_list:
@@ -51,9 +52,7 @@ class PCIe_LMT_Devices:
     def infoLaneMarginOnDeviceList(self):  # noqa (FLAKE8) C901
         for device in self.device_list:
             for lane in [0]:
-                ret = device.FetchMarginControlCapabilities(
-                    lane=lane, receiver_number=self.receiver_number
-                )
+                ret = device.FetchMarginControlCapabilities(lane=lane, receiver_number=self.receiver_number)
                 if ret["error"] is None:
                     device.primed = True
                     logger.info(
@@ -129,14 +128,10 @@ class PCIe_LMT_Devices:
                         steps=steps,
                     )
 
-                sampler = device.FetchSampleCount(
-                    lane=lane, receiver_number=self.receiver_number
-                )
+                sampler = device.FetchSampleCount(lane=lane, receiver_number=self.receiver_number)
                 if stepper["error"] or sampler["error"]:
                     lane_result.error = True
-                    lane_result.error_msg = (
-                        stepper["error"] if stepper["error"] else sampler["error"]
-                    )
+                    lane_result.error_msg = stepper["error"] if stepper["error"] else sampler["error"]
                 elif stepper["error_count"] == 0:
                     lane_result.error = False
                     lane_result.sample_count = sampler["sample_count"]
@@ -149,9 +144,7 @@ class PCIe_LMT_Devices:
                     lane_result.sample_count = sampler["sample_count"]
                     lane_result.sample_count_bits = sampler["sample_count_bits"]
                     lane_result.error_count = stepper["error_count"]
-                    lane_result.ber = (
-                        stepper["error_count"] / sampler["sample_count_bits"]
-                    )
+                    lane_result.ber = stepper["error_count"] / sampler["sample_count_bits"]
 
                 results.append(lane_result)
 

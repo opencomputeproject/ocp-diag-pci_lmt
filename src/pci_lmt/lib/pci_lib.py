@@ -1,5 +1,7 @@
-#!/usr/bin/env fbpython
-# (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
+# (c) Meta Platforms, Inc. and affiliates.
+# Use of this source code is governed by an MIT-style
+# license that can be found in the LICENSE file or at
+# https://opensource.org/licenses/MIT.
 
 import logging
 import os
@@ -7,12 +9,8 @@ from collections import namedtuple
 
 logger: logging.Logger = logging.getLogger(__name__)
 
-CapabilityInfo = namedtuple(
-    "CapabilityInfo", ["err_msg", "id", "version", "offset", "offset_next"]
-)
-LinkStatusInfo = namedtuple(
-    "LinkStatusInfo", ["err_msg", "speed", "speed_gts", "width"]
-)
+CapabilityInfo = namedtuple("CapabilityInfo", ["err_msg", "id", "version", "offset", "offset_next"])
+LinkStatusInfo = namedtuple("LinkStatusInfo", ["err_msg", "speed", "speed_gts", "width"])
 
 
 class PciLib:
@@ -60,21 +58,14 @@ class PciLib:
         data: int = -1
         try:
             data = int(
-                "0x"
-                + os.popen(f"setpci -s {self.bdf} {hex(address)}.{width_str}")
-                .readlines()[0]
-                .split("\n")[0],
+                "0x" + os.popen(f"setpci -s {self.bdf} {hex(address)}.{width_str}").readlines()[0].split("\n")[0],
                 16,
             )
         except BaseException as e:
-            print(
-                f"BDF:{self.bdf} Could not read PCI reg at address {hex(address)}. Exception:{e}"
-            )
+            print(f"BDF:{self.bdf} Could not read PCI reg at address {hex(address)}. Exception:{e}")
             return -1
 
-        logger.debug(
-            "BDF:%s Data read from address 0x%x : 0x%x", self.bdf, address, data
-        )
+        logger.debug("BDF:%s Data read from address 0x%x : 0x%x", self.bdf, address, data)
         return data
 
     def write(self, address, data, width=32) -> int:
@@ -89,20 +80,12 @@ class PciLib:
         width_str = self.width_str[width]
 
         try:
-            os.popen(
-                "setpci -s {} {}.{}={}".format(
-                    self.bdf, hex(address), width_str, hex(data)
-                )
-            )
+            os.popen("setpci -s {} {}.{}={}".format(self.bdf, hex(address), width_str, hex(data)))
         except BaseException as e:
-            print(
-                f"BDF:{self.bdf} Could not write PCI reg at address {hex(address)}. Exception:{e}"
-            )
+            print(f"BDF:{self.bdf} Could not write PCI reg at address {hex(address)}. Exception:{e}")
             return -1
 
-        logger.debug(
-            "BDF:%s Data written to address 0x%x : 0x%x", self.bdf, address, data
-        )
+        logger.debug("BDF:%s Data written to address 0x%x : 0x%x", self.bdf, address, data)
         return 0
 
     def create_dict_capabilities(self):
@@ -193,9 +176,7 @@ class PciLib:
                 width=None,
             )
 
-        offset = (
-            self.cap_dict[self.PCI_EXPRESS_CAP_ID].offset + self.LINK_STATUS_REG_OFFSET
-        )
+        offset = self.cap_dict[self.PCI_EXPRESS_CAP_ID].offset + self.LINK_STATUS_REG_OFFSET
         data = self.read(address=offset, width=16)
         if data == -1:
             err_msg = f"BDF:{self.bdf} Couldn't read Link status"
@@ -229,12 +210,8 @@ class PciLib:
         # 00 1000b x8 00 1100b x12 01 0000b x16 10 0000b x32
         # All other encodings are Reserved. The value in this field is undefined when the Link is not up.
         width = (data >> 4) & 0x3F  # 9:4
-        logger.debug(
-            "BDF:%s Link speed %d '%s' and width %d", self.bdf, speed, speed_gts, width
-        )
-        return LinkStatusInfo(
-            err_msg=None, speed=speed, speed_gts=speed_gts, width=width
-        )
+        logger.debug("BDF:%s Link speed %d '%s' and width %d", self.bdf, speed, speed_gts, width)
+        return LinkStatusInfo(err_msg=None, speed=speed, speed_gts=speed_gts, width=width)
 
     def get_lmt_cap_info(self) -> CapabilityInfo:
         """Returns the Lane Margining Capability info."""

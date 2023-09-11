@@ -1,8 +1,12 @@
+# (c) Meta Platforms, Inc. and affiliates.
+# Use of this source code is governed by an MIT-style
+# license that can be found in the LICENSE file or at
+# https://opensource.org/licenses/MIT.
+
 import logging
 import time
 
 from ..utils import common
-
 from . import pci_lib as pcilib
 from .constants import MARGIN_RESPONSE, PARAMETERS
 
@@ -28,9 +32,7 @@ def handle_lane_status(function_call):
         # Invoke the function and update the lane_errors if the function failed.
         ret = function_call(self, lane, *args, **kwargs)
         if ret["error"] is not None:
-            logger.warning(
-                f"{function_call} failed for BDF {self.bdf} lane {lane}: {ret['error']}"
-            )
+            logger.warning(f"{function_call} failed for BDF {self.bdf} lane {lane}: {ret['error']}")
             self.lane_errors[lane] = ret["error"]
         return ret
 
@@ -51,30 +53,22 @@ class PCIe_LMT:
 
         link_status = self.pcilib.get_link_status()
         if link_status.err_msg:
-            self.device_error = (
-                f"BDF {self.bdf} Link down or device not present: {link_status.err_msg}"
-            )
+            self.device_error = f"BDF {self.bdf} Link down or device not present: {link_status.err_msg}"
             return
 
         if link_status.width not in (1, 2, 4, 8, 16, 32, 64):
-            self.device_error = (
-                f"BDF {self.bdf} Unsupported Link width {link_status.width}"
-            )
+            self.device_error = f"BDF {self.bdf} Unsupported Link width {link_status.width}"
             return
         self.device_info.width = link_status.width
 
         if link_status.speed_gts not in ("16GT/s", "32GT/s", "64GT/s"):
-            self.device_error = (
-                f"BDF:{self.bdf} Unsupported link speed {link_status.speed_gts}"
-            )
+            self.device_error = f"BDF:{self.bdf} Unsupported link speed {link_status.speed_gts}"
             return
         self.device_info.speed = link_status.speed_gts
 
         lmt_cap_info = self.pcilib.get_lmt_cap_info()
         if lmt_cap_info.err_msg:
-            self.device_error = (
-                f"BDF: {self.bdf} Lane Margining unsupported {lmt_cap_info.err_msg}"
-            )
+            self.device_error = f"BDF: {self.bdf} Lane Margining unsupported {lmt_cap_info.err_msg}"
             return
         self.CAP_LMT_OFFSET = lmt_cap_info.offset
 
@@ -113,9 +107,7 @@ class PCIe_LMT:
             # The default value is 0x9C.
             # This field must be reset to the default value if the Port goes to DL_Down status.
             data = data | ((margin_payload & 0xFF) << 8)  # 15:8
-            err = self.pcilib.write(
-                address=self.CAP_LMT_OFFSET + address, data=data, width=16
-            )
+            err = self.pcilib.write(address=self.CAP_LMT_OFFSET + address, data=data, width=16)
             if err == -1:
                 return {"error": "ERROR: write_MarginingLaneControlRegister - write"}
             else:
@@ -174,10 +166,7 @@ class PCIe_LMT:
         )
         ret = self.decode_MarginingLaneStatusRegister(lane=lane)
         start_time = time.time()
-        while (
-            ret["receiver_number_status"] != 0x0
-            and ret["margin_payload_status"] != 0x9C
-        ):
+        while ret["receiver_number_status"] != 0x0 and ret["margin_payload_status"] != 0x9C:
             ret = self.decode_MarginingLaneStatusRegister(lane=lane)
             if time.time() - start_time > TIMEOUT:
                 return {"error": "ERROR: NoCommand - Timedout"}
@@ -189,9 +178,7 @@ class PCIe_LMT:
         # margin_payload:Registers Offset in Bytes 0x0-0x87, 0xA0-0xFF
         # margin_type:0x1
         # ResponseMarginPayload: Register value, if supported. Target Receiver on Retimer returns 00h if it does not support accessing its registers.
-        if receiver_number not in (0x2, 0x4) or register_offset not in [
-            *range(0x0, 0x88)
-        ] + [*range(0xA0, 0x100)]:
+        if receiver_number not in (0x2, 0x4) or register_offset not in [*range(0x0, 0x88)] + [*range(0xA0, 0x100)]:
             return {
                 "error": f"ERROR: AccessRetimerRegister - BAD receiver_number {receiver_number} or register_offset {register_offset}"
             }
@@ -210,9 +197,7 @@ class PCIe_LMT:
             if time.time() - start_time > TIMEOUT:
                 return {"error": "ERROR: AccessRetimerRegister - Timedout"}
         if ret["receiver_number_status"] == 0:
-            return {
-                "error": "ERROR: AccessRetimerRegister - receiver_number_status = 0"
-            }
+            return {"error": "ERROR: AccessRetimerRegister - receiver_number_status = 0"}
         else:
             register_value = ret["margin_payload_status"] & 0xFF
             return {"error": None, "register_value": register_value}
@@ -222,9 +207,7 @@ class PCIe_LMT:
         # ResponseMarginPayload: Margin Payload[7:5] = Reserved;
         # Margin Payload[4:0] = {Mind_error_sampler, Msample_reporting_method, Mind_left_right_timing, Mind_up_down_voltage, Mvoltage_supported}
         if receiver_number not in [*range(0x1, 0x7)]:
-            return {
-                "error": f"ERROR: FetchMarginControlCapabilities - Invalid receiver_number {receiver_number}"
-            }
+            return {"error": f"ERROR: FetchMarginControlCapabilities - Invalid receiver_number {receiver_number}"}
         self.NoCommand(lane=lane)
         self.write_MarginingLaneControlRegister(
             lane=lane,
@@ -242,15 +225,9 @@ class PCIe_LMT:
 
         self.device_info.lmt_capable = True
         self.device_info.ind_error_sampler = (ret["margin_payload_status"] & 0x10) >> 4
-        self.device_info.sample_reporting_method = (
-            ret["margin_payload_status"] & 0x08
-        ) >> 3
-        self.device_info.ind_left_right_timing = (
-            ret["margin_payload_status"] & 0x04
-        ) >> 2
-        self.device_info.ind_up_down_voltage = (
-            ret["margin_payload_status"] & 0x02
-        ) >> 1
+        self.device_info.sample_reporting_method = (ret["margin_payload_status"] & 0x08) >> 3
+        self.device_info.ind_left_right_timing = (ret["margin_payload_status"] & 0x04) >> 2
+        self.device_info.ind_up_down_voltage = (ret["margin_payload_status"] & 0x02) >> 1
         self.device_info.voltage_supported = (ret["margin_payload_status"] & 0x01) >> 0
 
         self.FetchNumVoltageSteps(lane=lane, receiver_number=receiver_number)
@@ -268,9 +245,7 @@ class PCIe_LMT:
     def FetchNumVoltageSteps(self, lane, receiver_number):
         # ResponseMarginPayload: Margin Payload [7] = Reserved Margin Payload[6:0] = MNumVoltageSteps
         if receiver_number not in [*range(0x1, 0x7)]:
-            return {
-                "error": f"ERROR: FetchNumVoltageSteps - BAD receiver_number {receiver_number}"
-            }
+            return {"error": f"ERROR: FetchNumVoltageSteps - BAD receiver_number {receiver_number}"}
 
         self.NoCommand(lane=lane)
         self.write_MarginingLaneControlRegister(
@@ -320,9 +295,7 @@ class PCIe_LMT:
     def FetchMaxTimingOffset(self, lane, receiver_number):
         # ResponseMarginPayload: Margin Payload [7] = Reserved Margin Payload[6:0] = MMaxTimingOffset
         if receiver_number not in [*range(0x1, 0x7)]:
-            return {
-                "error": f"ERROR: FetchMaxTimingOffset - BAD receiver_number {receiver_number}"
-            }
+            return {"error": f"ERROR: FetchMaxTimingOffset - BAD receiver_number {receiver_number}"}
 
         self.NoCommand(lane=lane)
         self.write_MarginingLaneControlRegister(
@@ -372,9 +345,7 @@ class PCIe_LMT:
     def FetchSamplingRateVoltage(self, lane, receiver_number):
         # ResponseMarginPayload: Margin Payload [7:6] = Reserved Margin Payload[5:0] = { MSamplingRateVoltage [5:0]}
         if receiver_number not in [*range(0x1, 0x7)]:
-            return {
-                "error": f"ERROR: FetchSamplingRateVoltage - BAD receiver_number {receiver_number}"
-            }
+            return {"error": f"ERROR: FetchSamplingRateVoltage - BAD receiver_number {receiver_number}"}
 
         self.NoCommand(lane=lane)
         self.write_MarginingLaneControlRegister(
@@ -391,18 +362,14 @@ class PCIe_LMT:
             if time.time() - start_time > TIMEOUT:
                 return {"error": "ERROR: FetchSamplingRateVoltage - timedout"}
 
-        self.device_info.sampling_rate_voltage = (
-            ret["margin_payload_status"] & 0x3F
-        ) >> 0
+        self.device_info.sampling_rate_voltage = (ret["margin_payload_status"] & 0x3F) >> 0
         return {"error": None}
 
     @handle_lane_status
     def FetchSamplingRateTiming(self, lane, receiver_number):
         # ResponseMarginPayload: Margin Payload [7:6] = Reserved Margin Payload[5:0] = { MSamplingRateTiming [5:0]}
         if receiver_number not in [*range(0x1, 0x7)]:
-            return {
-                "error": f"ERROR: FetchSamplingRateTiming - BAD receiver_number {receiver_number}"
-            }
+            return {"error": f"ERROR: FetchSamplingRateTiming - BAD receiver_number {receiver_number}"}
 
         self.NoCommand(lane=lane)
         self.write_MarginingLaneControlRegister(
@@ -419,18 +386,14 @@ class PCIe_LMT:
             if time.time() - start_time > TIMEOUT:
                 return {"error": "ERROR: FetchSamplingRateTiming - timedout"}
 
-        self.device_info.sampling_rate_timing = (
-            ret["margin_payload_status"] & 0x3F
-        ) >> 0
+        self.device_info.sampling_rate_timing = (ret["margin_payload_status"] & 0x3F) >> 0
         return {"error": None}
 
     @handle_lane_status
     def FetchSampleCount(self, lane, receiver_number):
         # ResponseMarginPayload: Margin Payload [7] = Reserved Margin Payload[6:0] = MSampleCount
         if receiver_number not in [*range(0x1, 0x7)]:
-            return {
-                "error": f"ERROR: FetchSampleCount - BAD receiver_number {receiver_number}"
-            }
+            return {"error": f"ERROR: FetchSampleCount - BAD receiver_number {receiver_number}"}
 
         self.NoCommand(lane=lane)
         self.write_MarginingLaneControlRegister(
@@ -462,9 +425,7 @@ class PCIe_LMT:
     def FetchMaxLanes(self, lane, receiver_number):
         # ResponseMarginPayload: Margin Payload [7:5] = Reserved Margin Payload[4:0] = MMaxLanes
         if receiver_number not in [*range(0x1, 0x7)]:
-            return {
-                "error": f"ERROR: FetchMaxLanes - BAD receiver_number {receiver_number}"
-            }
+            return {"error": f"ERROR: FetchMaxLanes - BAD receiver_number {receiver_number}"}
 
         self.NoCommand(lane=lane)
         self.write_MarginingLaneControlRegister(
@@ -488,9 +449,7 @@ class PCIe_LMT:
     def FetchReserved(self, lane, receiver_number, register_offset):
         # ResponseMarginPayload: register_offset Range 91-9Fh
         # Margin Payload[7:0] = Reserved
-        if receiver_number not in [*range(0x1, 0x7)] or register_offset not in [
-            *range(0x91, 0xA0)
-        ]:
+        if receiver_number not in [*range(0x1, 0x7)] or register_offset not in [*range(0x91, 0xA0)]:
             return {
                 "error": f"ERROR: FetchReserved - BAD receiver_number {receiver_number} OR BAD register_offset {register_offset}"
             }
@@ -517,9 +476,7 @@ class PCIe_LMT:
     def SetErrorCountLimit(self, lane, receiver_number, error_count_limit):
         # ResponseMarginPayload: Margin Payload [7:6] = 11b Margin Payload[5:0] = Error Count Limit registered by the target Receiver
         if receiver_number not in [*range(0x1, 0x7)]:
-            return {
-                "error": f"ERROR: SetErrorCountLimit - BAD receiver_number {receiver_number}"
-            }
+            return {"error": f"ERROR: SetErrorCountLimit - BAD receiver_number {receiver_number}"}
 
         self.NoCommand(lane=lane)
         margin_payload = 0x3 << 6 | (error_count_limit & 0x3F)
@@ -543,9 +500,7 @@ class PCIe_LMT:
     def GotoNormalSettings(self, lane, receiver_number):
         # ResponseMarginPayload: 0Fh
         if receiver_number not in [*range(0x0, 0x7)]:
-            return {
-                "error": f"ERROR: GotoNormalSettings - BAD receiver_number {receiver_number}"
-            }
+            return {"error": f"ERROR: GotoNormalSettings - BAD receiver_number {receiver_number}"}
 
         self.NoCommand(lane=lane)
         self.write_MarginingLaneControlRegister(
@@ -569,9 +524,7 @@ class PCIe_LMT:
     def ClearErrorLog(self, lane, receiver_number):
         # ResponseMarginPayload: 55h
         if receiver_number not in [*range(0x0, 0x7)]:
-            return {
-                "error": f"ERROR: ClearErrorLog - BAD receiver_number {receiver_number}"
-            }
+            return {"error": f"ERROR: ClearErrorLog - BAD receiver_number {receiver_number}"}
 
         self.NoCommand(lane=lane)
         self.write_MarginingLaneControlRegister(
@@ -592,9 +545,7 @@ class PCIe_LMT:
         return {"error": None, "value": value}
 
     @handle_lane_status
-    def StepMarginTimingOffsetRightLeftOfDefault(
-        self, lane, receiver_number, left_right_none=0, steps=6
-    ):
+    def StepMarginTimingOffsetRightLeftOfDefault(self, lane, receiver_number, left_right_none=0, steps=6):
         # LeftRightNone
         # 0 indicates to move the Receiver to the right of the normal setting to be used when ind_left_right_timing = 1.
         # 1 indicates to move the Receiver to the left of the normal setting to be used when ind_left_right_timing = 1.
@@ -612,18 +563,14 @@ class PCIe_LMT:
         # 00b: Too many errors – Receiver autonomously went back to its default settings. MErrorCount reflects the number of errors detected as defined in Section 8.4.4. Note that MErrorCount might be greater than Error Count Limit.
         # Margin Payload[5:0] = MErrorCount
         if receiver_number not in [*range(0x1, 0x7)]:
-            return {
-                "error": f"ERROR: StepMarginTimingOffsetRightLeftOfDefault - BAD receiver_number {receiver_number}"
-            }
+            return {"error": f"ERROR: StepMarginTimingOffsetRightLeftOfDefault - BAD receiver_number {receiver_number}"}
 
         if left_right_none == -1:
             margin_payload = steps
         elif left_right_none in (0, 1):
             margin_payload = left_right_none << 6 | steps
         else:
-            return {
-                "error": f"ERROR: StepMarginTimingOffsetRightLeftOfDefault - BAD left_right_none {left_right_none}"
-            }
+            return {"error": f"ERROR: StepMarginTimingOffsetRightLeftOfDefault - BAD left_right_none {left_right_none}"}
 
         self.NoCommand(lane=lane)
         self.write_MarginingLaneControlRegister(
@@ -658,9 +605,7 @@ class PCIe_LMT:
         while ret["margin_type_status"] != 0x3:
             ret = self.decode_MarginingLaneStatusRegister(lane=lane)
             if time.time() - start_time > TIMEOUT:
-                return {
-                    "error": "ERROR: decode_StepMarginTimingOffsetRightLeftOfDefault - timedout"
-                }
+                return {"error": "ERROR: decode_StepMarginTimingOffsetRightLeftOfDefault - timedout"}
 
         step_margin_execution_status = (ret["margin_payload_status"] & 0xC0) >> 6
         error_count = (ret["margin_payload_status"] & 0x3F) >> 0
@@ -669,16 +614,12 @@ class PCIe_LMT:
             "error": None,
             "margin_type_status": margin_type_status,
             "step_margin_execution_status": step_margin_execution_status,
-            "step_margin_execution_status_description": MARGIN_RESPONSE[
-                step_margin_execution_status
-            ],
+            "step_margin_execution_status_description": MARGIN_RESPONSE[step_margin_execution_status],
             "error_count": error_count,
         }
 
     @handle_lane_status
-    def StepMarginVoltageOffsetUpDownOfDefault(
-        self, lane, receiver_number, up_down=0, steps=32
-    ):
+    def StepMarginVoltageOffsetUpDownOfDefault(self, lane, receiver_number, up_down=0, steps=32):
         # UpDown
         # 0 indicates to move the Receiver to the Up from Normal.
         # 1 indicates to move the Receiver to the Down from Normal.
@@ -695,9 +636,7 @@ class PCIe_LMT:
         # 00b: Too many errors – Receiver autonomously went back to its default settings. MErrorCount reflects the number of errors detected as defined in Section 8.4.4. Note that MErrorCount might be greater than Error Count Limit.
         # Margin Payload[5:0] = MErrorCount
         if receiver_number not in [*range(0x1, 0x7)]:
-            return {
-                "error": f"ERROR: StepMarginVoltageOffsetUpDownOfDefault - BAD receiver_number {receiver_number}"
-            }
+            return {"error": f"ERROR: StepMarginVoltageOffsetUpDownOfDefault - BAD receiver_number {receiver_number}"}
 
         if steps not in [
             *range(
@@ -705,16 +644,12 @@ class PCIe_LMT:
                 PARAMETERS["NumVoltageSteps"]["max"] + 1,
             )
         ]:
-            return {
-                "error": f"ERROR: StepMarginVoltageOffsetUpDownOfDefault - BAD Steps {steps}"
-            }
+            return {"error": f"ERROR: StepMarginVoltageOffsetUpDownOfDefault - BAD Steps {steps}"}
 
         if up_down in (0, 1):
             margin_payload = up_down << 6 | steps
         else:
-            return {
-                "error": f"ERROR: StepMarginVoltageOffsetUpDownOfDefault - BAD UpDown {up_down}"
-            }
+            return {"error": f"ERROR: StepMarginVoltageOffsetUpDownOfDefault - BAD UpDown {up_down}"}
 
         self.NoCommand(lane=lane)
         self.write_MarginingLaneControlRegister(
@@ -748,9 +683,7 @@ class PCIe_LMT:
         while ret["margin_type_status"] != 0x4:
             ret = self.decode_MarginingLaneStatusRegister(lane=lane)
             if time.time() - start_time > TIMEOUT:
-                return {
-                    "error": "ERROR: decode_StepMarginVoltageOffsetUpDownOfDefault - timedout"
-                }
+                return {"error": "ERROR: decode_StepMarginVoltageOffsetUpDownOfDefault - timedout"}
 
         step_margin_execution_status = (ret["margin_payload_status"] & 0xC0) >> 6
         error_count = (ret["margin_payload_status"] & 0x3F) >> 0
@@ -759,8 +692,6 @@ class PCIe_LMT:
             "error": None,
             "margin_type_status": margin_type_status,
             "step_margin_execution_status": step_margin_execution_status,
-            "step_margin_execution_statusDescription": MARGIN_RESPONSE[
-                step_margin_execution_status
-            ],
+            "step_margin_execution_statusDescription": MARGIN_RESPONSE[step_margin_execution_status],
             "error_count": error_count,
         }

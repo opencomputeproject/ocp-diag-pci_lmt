@@ -1,3 +1,8 @@
+# (c) Meta Platforms, Inc. and affiliates.
+# Use of this source code is governed by an MIT-style
+# license that can be found in the LICENSE file or at
+# https://opensource.org/licenses/MIT.
+
 import dataclasses
 import json
 import os
@@ -161,9 +166,7 @@ def get_margin_directions(cfg: Dict[str, Any]) -> Tuple[int, int]:
 
 def get_run_id() -> str:
     """Returns an unique ID using RNG."""
-    return (
-        os.popen("od -N 16 -t uL -An /dev/urandom | sed 's/ //g'").read().split("\n")[0]
-    )
+    return os.popen("od -N 16 -t uL -An /dev/urandom | sed 's/ //g'").read().split("\n")[0]
 
 
 def get_curr_timestamp() -> int:
