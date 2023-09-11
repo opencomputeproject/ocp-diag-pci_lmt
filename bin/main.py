@@ -1,11 +1,17 @@
 #!/usr/bin/env fbpython
 # (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
+import sys
+from pathlib import Path
+
+# add the local lib to sys.path for discovery
+sys.path.append(str(Path(__file__).resolve().parent.parent / "src"))
+
 import argparse
 import logging
 
-from .lib import pci_lmt_wrapper
-from .utils import common, external
+from pci_lmt.lib import pci_lmt_wrapper
+from pci_lmt.utils import common, external
 
 
 def parse_args() -> argparse.Namespace:
