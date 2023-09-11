@@ -4,7 +4,6 @@ import os
 from dataclasses import dataclass
 from typing import Any, Dict, Tuple
 
-
 # Increment MAJOR version when you make incompatible API changes
 # Increment MINOR version when you add functionality in a backward compatible manner
 # Increment PATCH version when you make backward compatible bug fixes
@@ -33,7 +32,7 @@ class LmtDeviceInfo:
 
     bdf: str = ""
     speed: str = ""
-    width: str = ""
+    width: int = 0
     lmt_capable: bool = False
     ind_error_sampler: bool = False
     sample_reporting_method: int = 0

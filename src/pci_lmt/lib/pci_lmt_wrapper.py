@@ -4,7 +4,6 @@ import time
 from typing import List
 
 from ..utils import common
-
 from . import pci_lmt_lib as lmtlib
 
 logger: logging.Logger = logging.getLogger(__name__)

@@ -111,13 +111,13 @@ class PciLib:
         def decode_capability(address) -> CapabilityInfo:
             """Decodes the capability info at the given address."""
             data = self.read(address=address, width=32)
-            if data == -1:
+            if data == -1 or data == 0xFFFFFFFF:
                 cap_info = CapabilityInfo(
                     err_msg=f"ERROR: BDF {self.bdf} decode_capability address {hex(address)}",
                     id=None,
                     version=None,
                     offset=None,
-                    offset_next=None,
+                    offset_next=0,
                 )
             else:
                 cap_info = CapabilityInfo(
