@@ -4,8 +4,8 @@
 import sys
 from pathlib import Path
 
-# add the local lib to sys.path for discovery
-sys.path.append(str(Path(__file__).resolve().parent.parent / "src"))
+# add the local lib to sys.path for discovery when running from source
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 import argparse
 import logging
@@ -16,9 +16,7 @@ from pci_lmt.utils import common, external
 
 def parse_args() -> argparse.Namespace:
     """Parses given arguments into args dictionary."""
-    parser = argparse.ArgumentParser(
-        description="Runs Lane Margining Test on PCIe devices."
-    )
+    parser = argparse.ArgumentParser(description="Runs Lane Margining Test on PCIe devices.")
     parser.add_argument(
         "config_file",
         type=str,
@@ -38,11 +36,7 @@ def main() -> None:
     # Set logging level to ERROR/INFO/DEBUG based on verbose level (0/1/2+).
     logging.basicConfig(
         format="%(levelname)s: %(message)s",
-        level=logging.ERROR
-        if args.verbose == 0
-        else logging.INFO
-        if args.verbose == 1
-        else logging.DEBUG,
+        level=logging.ERROR if args.verbose == 0 else logging.INFO if args.verbose == 1 else logging.DEBUG,
     )
 
     platform_config = common.get_platform_config_local(args.config_file)

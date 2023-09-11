@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pci_lmt"
+version = "1.1.1"
+description = "PCI Lane Margining Tool"
+readme = "README.md"
+authors = [
+    { name = "OCP Test & Validation", email = "ocp-test-validation@OCP-All.groups.io" },
+]
+license = { file = "LICENSE" }
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.9",
+    "Topic :: System :: Hardware",
+]
+keywords = ["ocp", "ocptv", "pci", "pcie", "lmt"]
+dependencies = []
+requires-python = ">=3.9"
+
+[project.optional-dependencies]
+dev = ["black", "bumpver", "isort"]
+
+[project.urls]
+"Homepage" = "https://github.com/opencomputeproject/ocp-diag-pci_lmt"
+"Bug reports" = "https://github.com/opencomputeproject/ocp-diag-pci_lmt/issues"
+"Source" = "https://github.com/opencomputeproject/ocp-diag-pci_lmt"
+
+[project.scripts]
+pci_lmt = "pci_lmt.bin.main:main"
+
+[tool.bumpver]
+current_version = "1.1.1"
+version_pattern = "MAJOR.MINOR.PATCH"
+commit_message = "bump version {old_version} -> {new_version}"
+commit = true
+tag = false
+push = false
+
+[tool.bumpver.file_patterns]
+"pyproject.toml" = ['current_version = "{version}"', 'version = "{version}"']
+
+[tool.black]
+line-length = 120
+
+[tool.isort]
+profile = "black"
