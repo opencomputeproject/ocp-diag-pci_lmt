@@ -10,10 +10,12 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 import argparse
+import json
 import logging
+import typing as ty
 
-from pci_lmt.lib import pci_lmt_wrapper
-from pci_lmt.utils import common, external
+from pci_lmt import collector, external
+from pci_lmt.args import add_common_args
 
 
 def parse_args() -> argparse.Namespace:
@@ -25,10 +27,16 @@ def parse_args() -> argparse.Namespace:
         help="Path to the configuration file (in JSON format).",
         default=None,
     )
-    common.add_common_args(parser)
+    add_common_args(parser)
 
     args = parser.parse_args()
     return args
+
+
+def get_platform_config(config_file: str) -> ty.Dict[str, ty.Any]:
+    """Returns the LMT configuration as a dict from the given configuration file."""
+    with open(config_file, "r") as f:
+        return json.loads(f.read())
 
 
 def main() -> None:
@@ -41,8 +49,8 @@ def main() -> None:
         level=logging.ERROR if args.verbose == 0 else logging.INFO if args.verbose == 1 else logging.DEBUG,
     )
 
-    platform_config = common.get_platform_config_local(args.config_file)
-    pci_lmt_wrapper.run_lmt(args=args, platform_config=platform_config, utils=external)
+    platform_config = get_platform_config(args.config_file)
+    collector.run_lmt(args=args, platform_config=platform_config, utils=external)
 
 
 if __name__ == "__main__":

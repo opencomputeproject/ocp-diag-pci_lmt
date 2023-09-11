@@ -5,7 +5,7 @@
 
 import socket
 
-from .common import LmtLaneResult
+from pci_lmt.collector import LmtLaneResult
 
 
 def send_to_db(result: LmtLaneResult) -> None:

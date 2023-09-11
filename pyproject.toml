@@ -32,6 +32,9 @@ dev = ["black", "bumpver", "isort"]
 [project.scripts]
 pci_lmt = "pci_lmt.bin.main:main"
 
+# Increment MAJOR version when you make incompatible API changes
+# Increment MINOR version when you add functionality in a backward compatible manner
+# Increment PATCH version when you make backward compatible bug fixes
 [tool.bumpver]
 current_version = "1.1.1"
 version_pattern = "MAJOR.MINOR.PATCH"

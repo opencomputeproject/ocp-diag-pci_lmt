@@ -3,18 +3,75 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
+import dataclasses
 import json
 import logging
+import os
 import time
-from typing import List
+import typing as ty
+from dataclasses import dataclass
 
-from ..utils import common
-from . import pci_lmt_lib as lmtlib
+from pci_lmt import __version__ as PCI_LMT_VERSION
+from pci_lmt.device import PciDevice
+from pci_lmt.pcie_lane_margining import LmtDeviceInfo, PcieDeviceLaneMargining
 
 logger: logging.Logger = logging.getLogger(__name__)
 
 
-class PCIe_LMT_Devices:
+@dataclass
+class LmtTestInfo:
+    """Class to hold test level info for the LMT test."""
+
+    run_id: str = ""
+    timestamp: int = -1
+    asset_id: int = -1
+    hostname: str = ""
+    model_name: str = ""
+    dwell_time_secs: int = -1
+    elapsed_time_secs: float = -1
+    error_count_limit: int = -1
+    test_version: str = ""
+    annotation: str = ""
+
+
+@dataclass
+class LmtLaneResult:
+    """Class to hold lane level info for the LMT test."""
+
+    test_info: LmtTestInfo = LmtTestInfo()
+    device_info: LmtDeviceInfo = LmtDeviceInfo()
+    lane: int = -1
+    receiver_number: int = -1
+    margin_type: str = ""
+    step: int = -1
+    sample_count: int = -1
+    sample_count_bits: int = -1
+    error_count: int = -1
+    ber: float = -1.0
+    error: bool = True
+    error_msg: str = ""
+
+    def to_json(self) -> str:
+        """Converts the object into a JSON string."""
+        return json.dumps(dataclasses.asdict(self))
+
+    def to_csv(self) -> ty.Tuple[str, str]:
+        """Converts the object into a CSV string and returns header and row."""
+        nested_dict = dataclasses.asdict(self)
+        flat_dict = {}
+        for key, value in nested_dict.items():
+            if isinstance(value, dict):
+                for inner_key, val in value.items():
+                    flat_dict[f"{key}.{inner_key}"] = val
+            else:
+                flat_dict[key] = value
+
+        header = ",".join(flat_dict.keys())
+        row = ",".join(str(value) for value in flat_dict.values())
+        return header, row
+
+
+class PcieLmCollector:
     def __init__(self, bdf_list):
         self.receiver_number = None
         self.error_count_limit = None
@@ -26,9 +83,9 @@ class PCIe_LMT_Devices:
 
     def setupDeviceListFromBdfList(self, bdf_list):
         device_list = []
-        for each in bdf_list:
-            device = lmtlib.PCIe_LMT(each)
-            device_list.append(device)
+        for bdf in bdf_list:
+            device = PciDevice(bdf)
+            device_list.append(PcieDeviceLaneMargining(device))
         return device_list
 
     def normalSettingsOnDeviceList(self):
@@ -57,14 +114,14 @@ class PCIe_LMT_Devices:
                     device.primed = True
                     logger.info(
                         "Device %s ReceiverNum %d PRIMED: %s",
-                        device.bdf,
+                        device.device_info.bdf,
                         self.receiver_number,
                         device.device_info,
                     )
                 else:
                     logger.warning(
                         "Device %s ReceiverNum %d NOT PRIMED: %s",
-                        device.bdf,
+                        device.device_info.bdf,
                         self.receiver_number,
                         ret["error"],
                     )
@@ -73,7 +130,7 @@ class PCIe_LMT_Devices:
                         device.lane_errors[lane] = ret["error"]
                     continue
 
-    def setupLaneMarginOnDeviceList(self, error_count_limit=50):
+    def setupLaneMarginOnDeviceList(self):
         for device in self.device_list:
             if device.primed:
                 for lane in range(device.device_info.width):
@@ -85,14 +142,14 @@ class PCIe_LMT_Devices:
 
     def collectLaneMarginOnDeviceList(
         self, voltage_or_timing="TIMING", steps=16, up_down=0, left_right_none=0
-    ) -> List[common.LmtLaneResult]:
+    ) -> ty.List[LmtLaneResult]:
         """Returns the Lane Margining Test result from all lanes as a list."""
         results = []
         for device in self.device_list:
             # Collect results from all devices and lanes
             # irrespective of device prime or lane error status.
             for lane in range(device.device_info.width):
-                lane_result = common.LmtLaneResult(
+                lane_result = LmtLaneResult(
                     device_info=device.device_info,
                     lane=lane,
                     receiver_number=self.receiver_number,
@@ -169,6 +226,38 @@ class PCIe_LMT_Devices:
         self.voltage_or_timing = voltage_or_timing
 
 
+def get_margin_directions(cfg: ty.Dict[str, ty.Any]) -> ty.Tuple[int, int]:
+    """Returns the margin direction as a tuple."""
+    left_right_none = -1
+    up_down = -1
+    margin_info = (cfg["margin_type"], cfg["margin_direction"])
+    if margin_info == ("TIMING", "right"):
+        left_right_none = 0
+    elif margin_info == ("TIMING", "left"):
+        left_right_none = 1
+    elif margin_info == ("VOLTAGE", "up"):
+        up_down = 0
+    elif margin_info == ("VOLTAGE", "down"):
+        up_down = 1
+    else:
+        raise ValueError(
+            f"Invalid values for margin_type {cfg['margin_type']} and/or "
+            f"margin_direction {cfg['margin_direction']}."
+        )
+
+    return (left_right_none, up_down)
+
+
+def get_run_id() -> str:
+    """Returns an unique ID using RNG."""
+    return os.popen("od -N 16 -t uL -An /dev/urandom | sed 's/ //g'").read().split("\n")[0]
+
+
+def get_curr_timestamp() -> int:
+    """Returns the current unix timestamp."""
+    return int(os.popen("date +%s").read().split("\n")[0])
+
+
 def collectLmtOnBDFs(
     hostname,
     asset_id,
@@ -182,21 +271,21 @@ def collectLmtOnBDFs(
     voltage_or_timing: str = "TIMING",
     dwell_time: int = 5,
     annotation: str = "",
-) -> List[common.LmtLaneResult]:
+) -> ty.List[LmtLaneResult]:
     # Gather test level info.
-    test_info = common.LmtTestInfo()
-    test_info.run_id = common.get_run_id()
-    test_info.timestamp = common.get_curr_timestamp()
+    test_info = LmtTestInfo()
+    test_info.run_id = get_run_id()
+    test_info.timestamp = get_curr_timestamp()
     test_info.asset_id = asset_id
     test_info.hostname = hostname
     test_info.model_name = model_name
     test_info.dwell_time_secs = dwell_time
     test_info.error_count_limit = error_count_limit
-    test_info.test_version = common.VERSION
+    test_info.test_version = PCI_LMT_VERSION
     test_info.annotation = annotation
 
     logger.info("%s", test_info)
-    devices = PCIe_LMT_Devices(bdf_list)
+    devices = PcieLmCollector(bdf_list)
 
     devices.sampler_setup(
         receiver_number=receiver_number,
@@ -211,7 +300,7 @@ def collectLmtOnBDFs(
     devices.noCommandOnDeviceList()
     devices.clearErrorLogOnDeviceList()
     devices.normalSettingsOnDeviceList()
-    devices.setupLaneMarginOnDeviceList(error_count_limit=devices.error_count_limit)
+    devices.setupLaneMarginOnDeviceList()
 
     start_time = time.time()
     time.sleep(dwell_time)
@@ -240,7 +329,7 @@ def run_lmt(args, platform_config, utils) -> None:
     csv_header_done = False
     for cfg in platform_config["lmt_groups"]:
         annotation = args.annotation if args.annotation else cfg["name"]
-        left_right_none, up_down = common.get_margin_directions(cfg)
+        left_right_none, up_down = get_margin_directions(cfg)
         # Loop through each step running LMT on all BDFs.
         for step in cfg["margin_steps"]:
             bdf_list = cfg["bdf_list"]
@@ -281,4 +370,4 @@ def run_lmt(args, platform_config, utils) -> None:
                         csv_header_done = True
                     print(row)
                 else:
-                    raise ValueError("Output must be one of'scribe', 'json', or 'csv'")
+                    raise ValueError("Output must be one of 'scribe', 'json', or 'csv'")

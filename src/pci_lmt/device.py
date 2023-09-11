@@ -13,9 +13,9 @@ CapabilityInfo = namedtuple("CapabilityInfo", ["err_msg", "id", "version", "offs
 LinkStatusInfo = namedtuple("LinkStatusInfo", ["err_msg", "speed", "speed_gts", "width"])
 
 
-class PciLib:
+class PciDevice:
     """
-    Helper library to perform PCI operations.
+    Model a PCI express device and operations.
     """
 
     PCI_EXPRESS_CAP_ID = 0x10
@@ -35,7 +35,7 @@ class PciLib:
         6: "64GT/s",
     }
 
-    def __init__(self, bdf) -> None:
+    def __init__(self, bdf: str) -> None:
         """
         Initialize the PCI library with the given Bus:Device:Function info.
         Args: bdf: Bus:Device:Function info

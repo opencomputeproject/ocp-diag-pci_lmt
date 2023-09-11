@@ -5,14 +5,13 @@
 
 import logging
 import time
+from dataclasses import dataclass
 
-from ..utils import common
-from . import pci_lib as pcilib
-from .constants import MARGIN_RESPONSE, PARAMETERS
+from pci_lmt.constants import MARGIN_RESPONSE, PARAMETERS
+from pci_lmt.device import PciDevice
 
 logger: logging.Logger = logging.getLogger(__name__)
 
-CAPABILITIES_POINTER = 0x34
 TIMEOUT = 0.5  # seconds
 
 
@@ -32,43 +31,65 @@ def handle_lane_status(function_call):
         # Invoke the function and update the lane_errors if the function failed.
         ret = function_call(self, lane, *args, **kwargs)
         if ret["error"] is not None:
-            logger.warning(f"{function_call} failed for BDF {self.bdf} lane {lane}: {ret['error']}")
+            logger.warning(f"{function_call} failed for BDF {self.device.bdf} lane {lane}: {ret['error']}")
             self.lane_errors[lane] = ret["error"]
         return ret
 
     return wrapper
 
 
-class PCIe_LMT:
-    def __init__(self, bdf):
-        self.pcilib = pcilib.PciLib(bdf)
-        self.device_info = common.LmtDeviceInfo()
-        self.bdf = bdf
-        self.device_info.bdf = bdf
+@dataclass
+class LmtDeviceInfo:
+    """Class to hold device level info for the LMT test."""
+
+    bdf: str = ""
+    speed: str = ""
+    width: int = 0
+    lmt_capable: bool = False
+    ind_error_sampler: bool = False
+    sample_reporting_method: int = 0
+    ind_left_right_timing: bool = False
+    ind_up_down_voltage: bool = False
+    voltage_supported: bool = False
+    num_voltage_steps: int = 0
+    num_timing_steps: int = 0
+    max_timing_offset: int = 0
+    max_voltage_offset: int = 0
+    sampling_rate_voltage: int = 0
+    sampling_rate_timing: int = 0
+    max_lanes: int = 0
+    reserved: int = 0
+
+
+class PcieDeviceLaneMargining:
+    def __init__(self, device: PciDevice):
+        self.device = device
+        self.device_info = LmtDeviceInfo()
+        self.device_info.bdf = device.bdf
         self.primed = False
 
         # Placeholder to store the device error status.
         # This is checked in each function call (via handle_lane_status decorator).
         self.device_error = None
 
-        link_status = self.pcilib.get_link_status()
+        link_status = self.device.get_link_status()
         if link_status.err_msg:
-            self.device_error = f"BDF {self.bdf} Link down or device not present: {link_status.err_msg}"
+            self.device_error = f"BDF {self.device.bdf} Link down or device not present: {link_status.err_msg}"
             return
 
         if link_status.width not in (1, 2, 4, 8, 16, 32, 64):
-            self.device_error = f"BDF {self.bdf} Unsupported Link width {link_status.width}"
+            self.device_error = f"BDF {self.device.bdf} Unsupported Link width {link_status.width}"
             return
         self.device_info.width = link_status.width
 
         if link_status.speed_gts not in ("16GT/s", "32GT/s", "64GT/s"):
-            self.device_error = f"BDF:{self.bdf} Unsupported link speed {link_status.speed_gts}"
+            self.device_error = f"BDF:{self.device.bdf} Unsupported link speed {link_status.speed_gts}"
             return
         self.device_info.speed = link_status.speed_gts
 
-        lmt_cap_info = self.pcilib.get_lmt_cap_info()
+        lmt_cap_info = self.device.get_lmt_cap_info()
         if lmt_cap_info.err_msg:
-            self.device_error = f"BDF: {self.bdf} Lane Margining unsupported {lmt_cap_info.err_msg}"
+            self.device_error = f"BDF: {self.device.bdf} Lane Margining unsupported {lmt_cap_info.err_msg}"
             return
         self.CAP_LMT_OFFSET = lmt_cap_info.offset
 
@@ -86,7 +107,7 @@ class PCIe_LMT:
         margin_payload=0x9C,
     ):
         address = 0x8 + (lane * 0x4)
-        data = self.pcilib.read(address=self.CAP_LMT_OFFSET + address, width=16)
+        data = self.device.read(address=self.CAP_LMT_OFFSET + address, width=16)
         if data == -1:
             return {"error": "ERROR: write_MarginingLaneControlRegister - read"}
         else:
@@ -107,7 +128,7 @@ class PCIe_LMT:
             # The default value is 0x9C.
             # This field must be reset to the default value if the Port goes to DL_Down status.
             data = data | ((margin_payload & 0xFF) << 8)  # 15:8
-            err = self.pcilib.write(address=self.CAP_LMT_OFFSET + address, data=data, width=16)
+            err = self.device.write(address=self.CAP_LMT_OFFSET + address, data=data, width=16)
             if err == -1:
                 return {"error": "ERROR: write_MarginingLaneControlRegister - write"}
             else:
@@ -116,7 +137,7 @@ class PCIe_LMT:
     @handle_lane_status
     def decode_MarginingLaneStatusRegister(self, lane=0):
         address = 0xA + (lane * 0x4)
-        data = self.pcilib.read(address=self.CAP_LMT_OFFSET + address, width=16)
+        data = self.device.read(address=self.CAP_LMT_OFFSET + address, width=16)
         if data == -1:
             return {"error": "ERROR: decode_MarginingLaneStatusRegister"}
         else:

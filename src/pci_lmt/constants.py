@@ -14,6 +14,7 @@ EXPRESS_TYPES = {
     0x9: "root_complex_endpoint",
     0xA: "root_complex_event_collector",
 }
+
 EXPRESS_SPEED = {
     1: "2.5GT/s",
     2: "5GT/s",

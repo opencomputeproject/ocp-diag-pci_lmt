@@ -5,14 +5,15 @@
 
 from unittest import mock
 
+# TODO: broken
 import testslide
 
-from . import pci_lib
+from ...src.pci_lmt import device
 
 
 class TestPciLib(testslide.TestCase):
     def setUp(self) -> None:
-        self.pci_lib = pci_lib.PciLib("0000:11:2.3")
+        self.pci_lib = device.PciLib("0000:11:2.3")
         super().setUp()
 
     def test_read_fails_invalid_args(self) -> None:
@@ -68,7 +69,7 @@ class TestPciLib(testslide.TestCase):
         with mock.patch.object(self.pci_lib, "read", side_effect=[0x1000, 0x2010, 0, 0x204]):
             self.assertEqual(
                 self.pci_lib.get_link_status(),
-                pci_lib.LinkStatusInfo(err_msg=None, speed=4, speed_gts="16GT/s", width=32),
+                device.LinkStatusInfo(err_msg=None, speed=4, speed_gts="16GT/s", width=32),
             )
 
     def test_get_lmt_cap_info(self) -> None:
@@ -77,5 +78,5 @@ class TestPciLib(testslide.TestCase):
         with mock.patch.object(self.pci_lib, "read", side_effect=[0x0027, 0]):
             self.assertEqual(
                 self.pci_lib.get_lmt_cap_info(),
-                pci_lib.CapabilityInfo(err_msg=None, id=0x27, version=0, offset=0x100, offset_next=0),
+                device.CapabilityInfo(err_msg=None, id=0x27, version=0, offset=0x100, offset_next=0),
             )
