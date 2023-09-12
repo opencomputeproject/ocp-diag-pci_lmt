@@ -30,7 +30,7 @@ dev = ["black", "bumpver", "isort", "mypy"]
 "Source" = "https://github.com/opencomputeproject/ocp-diag-pci_lmt"
 
 [project.scripts]
-pci_lmt = "pci_lmt.bin.main:main"
+pci_lmt = "pci_lmt_bin.main:main"
 
 # Increment MAJOR version when you make incompatible API changes
 # Increment MINOR version when you add functionality in a backward compatible manner
