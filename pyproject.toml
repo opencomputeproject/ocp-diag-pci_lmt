@@ -52,6 +52,7 @@ line-length = 120
 [tool.pylint]
 max-line-length = 120
 max-args = 8
+min-public-methods = 1
 max-public-methods = 25
 init-hook = 'import sys; sys.path.append("src")'
 disable = [

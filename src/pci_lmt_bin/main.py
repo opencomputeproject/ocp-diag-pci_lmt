@@ -15,8 +15,10 @@ import json
 import logging
 import typing as ty
 
-from pci_lmt import collector, external
+from pci_lmt import collector
 from pci_lmt.args import add_common_args
+from pci_lmt.host import HostInfo
+from pci_lmt.results import Reporter
 
 
 def parse_args() -> argparse.Namespace:
@@ -51,7 +53,12 @@ def main() -> None:
     )
 
     platform_config = get_platform_config(args.config_file)
-    collector.run_lmt(args=args, platform_config=platform_config, utils=external)
+    collector.run_lmt(
+        args=args,
+        platform_config=platform_config,
+        host=HostInfo(),
+        reporter=Reporter(),
+    )
 
 
 if __name__ == "__main__":

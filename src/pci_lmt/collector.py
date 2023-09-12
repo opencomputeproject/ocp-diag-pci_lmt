@@ -3,72 +3,19 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-import dataclasses
 import json
 import logging
 import os
 import time
 import typing as ty
-from dataclasses import dataclass
 
 from pci_lmt import __version__ as PCI_LMT_VERSION
 from pci_lmt.device import PciDevice
-from pci_lmt.pcie_lane_margining import LmtDeviceInfo, PcieDeviceLaneMargining
+from pci_lmt.host import HostInfo
+from pci_lmt.pcie_lane_margining import PcieDeviceLaneMargining
+from pci_lmt.results import LmtLaneResult, LmtTestInfo, Reporter
 
 logger: logging.Logger = logging.getLogger(__name__)
-
-
-@dataclass
-class LmtTestInfo:  # pylint: disable=too-many-instance-attributes
-    """Class to hold test level info for the LMT test."""
-
-    run_id: str = ""
-    timestamp: int = -1
-    asset_id: int = -1
-    hostname: str = ""
-    model_name: str = ""
-    dwell_time_secs: int = -1
-    elapsed_time_secs: float = -1
-    error_count_limit: int = -1
-    test_version: str = ""
-    annotation: str = ""
-
-
-@dataclass
-class LmtLaneResult:  # pylint: disable=too-many-instance-attributes
-    """Class to hold lane level info for the LMT test."""
-
-    test_info: LmtTestInfo = LmtTestInfo()
-    device_info: LmtDeviceInfo = LmtDeviceInfo()
-    lane: int = -1
-    receiver_number: int = -1
-    margin_type: str = ""
-    step: int = -1
-    sample_count: int = -1
-    sample_count_bits: int = -1
-    error_count: int = -1
-    ber: float = -1.0
-    error: bool = True
-    error_msg: str = ""
-
-    def to_json(self) -> str:
-        """Converts the object into a JSON string."""
-        return json.dumps(dataclasses.asdict(self))
-
-    def to_csv(self) -> ty.Tuple[str, str]:
-        """Converts the object into a CSV string and returns header and row."""
-        nested_dict = dataclasses.asdict(self)
-        flat_dict = {}
-        for key, value in nested_dict.items():
-            if isinstance(value, dict):
-                for inner_key, val in value.items():
-                    flat_dict[f"{key}.{inner_key}"] = val
-            else:
-                flat_dict[key] = value
-
-        header = ",".join(flat_dict.keys())
-        row = ",".join(str(value) for value in flat_dict.values())
-        return header, row
 
 
 class PcieLmCollector:
@@ -264,7 +211,7 @@ def get_curr_timestamp() -> int:
 # pylint: disable=too-many-arguments,too-many-locals
 def collect_lmt_on_bdfs(
     hostname,
-    asset_id,
+    host_id,
     model_name,
     bdf_list,
     receiver_number: int = 0x1,
@@ -280,7 +227,7 @@ def collect_lmt_on_bdfs(
     test_info = LmtTestInfo()
     test_info.run_id = get_run_id()
     test_info.timestamp = get_curr_timestamp()
-    test_info.asset_id = asset_id
+    test_info.host_id = host_id
     test_info.hostname = hostname
     test_info.model_name = model_name
     test_info.dwell_time_secs = dwell_time
@@ -325,13 +272,12 @@ def collect_lmt_on_bdfs(
 
 
 # pylint: disable=too-many-locals
-def run_lmt(args, platform_config, utils) -> None:
+def run_lmt(args, platform_config, host: HostInfo, reporter: Reporter) -> None:
     """Runs LMT tests on all the interfaces listed in the platform_config."""
-    hostname = utils.get_host_name()
-    asset_id = utils.get_asset_id()
-    model_name = utils.get_model_name()
+
     logger.info("Loading config: %s", json.dumps(platform_config, indent=2))
     csv_header_done = False
+
     for cfg in platform_config["lmt_groups"]:
         annotation = args.annotation if args.annotation else cfg["name"]
         left_right_none, up_down = get_margin_directions(cfg)
@@ -349,9 +295,9 @@ def run_lmt(args, platform_config, utils) -> None:
                 args.dwell_time,
             )
             results = collect_lmt_on_bdfs(
-                hostname=hostname,
-                asset_id=asset_id,
-                model_name=model_name,
+                hostname=host.hostname,
+                host_id=host.host_id,
+                model_name=host.model_name,
                 bdf_list=bdf_list,
                 receiver_number=receiver_number,
                 error_count_limit=args.error_count_limit,
@@ -365,7 +311,7 @@ def run_lmt(args, platform_config, utils) -> None:
             for result in results:
                 logger.info(result)
                 if args.output == "scribe":
-                    utils.send_to_db(result)
+                    reporter.write(result)
                 elif args.output == "json":
                     print(result.to_json())
                 elif args.output == "csv":

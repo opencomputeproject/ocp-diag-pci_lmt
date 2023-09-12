@@ -4,3 +4,4 @@ __pycache__
 /*.json
 *.egg-info
 /build
+/.mypy_cache
