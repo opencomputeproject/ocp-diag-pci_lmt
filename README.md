@@ -12,6 +12,8 @@ Lane Margining enables system designers to measure the available margin in a sta
 - Avoids excessive part swaps triggered by multiple repair actions
 - Provides a reliable way to check if source defect is fixed after repairs
 
+This project is part of [ocp-diag-core](https://github.com/opencomputeproject/ocp-diag-core) and exists under the same [MIT License Agreement](https://github.com/opencomputeproject/ocp-diag-pci_lmt/LICENSE).
+
 # Command Syntax
 
 ```
