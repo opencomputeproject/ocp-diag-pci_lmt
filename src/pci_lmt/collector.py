@@ -19,7 +19,7 @@ logger: logging.Logger = logging.getLogger(__name__)
 
 
 @dataclass
-class LmtTestInfo:
+class LmtTestInfo:  # pylint: disable=too-many-instance-attributes
     """Class to hold test level info for the LMT test."""
 
     run_id: str = ""
@@ -35,7 +35,7 @@ class LmtTestInfo:
 
 
 @dataclass
-class LmtLaneResult:
+class LmtLaneResult:  # pylint: disable=too-many-instance-attributes
     """Class to hold lane level info for the LMT test."""
 
     test_info: LmtTestInfo = LmtTestInfo()
@@ -79,37 +79,37 @@ class PcieLmCollector:
         self.up_down = None
         self.steps = None
         self.voltage_or_timing = None
-        self.device_list = self.setupDeviceListFromBdfList(bdf_list)
+        self.device_list = self.setup_device_list_from_bdf_list(bdf_list)
 
-    def setupDeviceListFromBdfList(self, bdf_list):
+    def setup_device_list_from_bdf_list(self, bdf_list):
         device_list = []
         for bdf in bdf_list:
             device = PciDevice(bdf)
             device_list.append(PcieDeviceLaneMargining(device))
         return device_list
 
-    def normalSettingsOnDeviceList(self):
+    def normal_settings_on_device_list(self):
         for device in self.device_list:
             if device.primed:
                 for lane in range(device.device_info.width):
-                    device.GotoNormalSettings(lane=lane, receiver_number=self.receiver_number)
+                    device.goto_normal_settings(lane=lane, receiver_number=self.receiver_number)
 
-    def clearErrorLogOnDeviceList(self):
+    def clear_error_log_on_device_list(self):
         for device in self.device_list:
             if device.primed:
                 for lane in range(device.device_info.width):
-                    device.ClearErrorLog(lane=lane, receiver_number=self.receiver_number)
+                    device.clear_error_log(lane=lane, receiver_number=self.receiver_number)
 
-    def noCommandOnDeviceList(self):
+    def no_command_on_device_list(self):
         for device in self.device_list:
             if device.primed:
                 for lane in range(device.device_info.width):
-                    device.NoCommand(lane=lane)
+                    device.no_command(lane=lane)
 
-    def infoLaneMarginOnDeviceList(self):  # noqa (FLAKE8) C901
+    def info_lane_margin_on_device_list(self):  # noqa (FLAKE8) C901
         for device in self.device_list:
             for lane in [0]:
-                ret = device.FetchMarginControlCapabilities(lane=lane, receiver_number=self.receiver_number)
+                ret = device.fetch_margin_control_capabilities(lane=lane, receiver_number=self.receiver_number)
                 if ret["error"] is None:
                     device.primed = True
                     logger.info(
@@ -130,17 +130,18 @@ class PcieLmCollector:
                         device.lane_errors[lane] = ret["error"]
                     continue
 
-    def setupLaneMarginOnDeviceList(self):
+    def setup_lane_margin_on_device_list(self):
         for device in self.device_list:
             if device.primed:
                 for lane in range(device.device_info.width):
-                    device.SetErrorCountLimit(
+                    device.set_error_count_limit(
                         lane=lane,
                         receiver_number=self.receiver_number,
                         error_count_limit=self.error_count_limit,
                     )
 
-    def collectLaneMarginOnDeviceList(
+    # pylint: disable=too-many-branches
+    def collect_lane_margin_on_device_list(
         self, voltage_or_timing="TIMING", steps=16, up_down=0, left_right_none=0
     ) -> ty.List[LmtLaneResult]:
         """Returns the Lane Margining Test result from all lanes as a list."""
@@ -163,7 +164,7 @@ class PcieLmCollector:
                         lane_result.margin_type += "left"
                     else:
                         lane_result.margin_type += "none"
-                    stepper = device.StepMarginTimingOffsetRightLeftOfDefault(
+                    stepper = device.step_margin_timing_offset_right_left_of_default(
                         lane=lane,
                         receiver_number=self.receiver_number,
                         left_right_none=left_right_none,
@@ -178,14 +179,14 @@ class PcieLmCollector:
                         lane_result.margin_type += "down"
                     else:
                         lane_result.margin_type += "none"
-                    stepper = device.StepMarginVoltageOffsetup_downOfDefault(
+                    stepper = device.step_margin_voltage_offset_up_down_of_default(
                         lane=lane,
                         receiver_number=self.receiver_number,
                         up_down=up_down,
                         steps=steps,
                     )
 
-                sampler = device.FetchSampleCount(lane=lane, receiver_number=self.receiver_number)
+                sampler = device.fetch_sample_count(lane=lane, receiver_number=self.receiver_number)
                 if stepper["error"] or sampler["error"]:
                     lane_result.error = True
                     lane_result.error_msg = stepper["error"] if stepper["error"] else sampler["error"]
@@ -207,8 +208,10 @@ class PcieLmCollector:
 
         return results
 
-    # MSampleCount Value = 3*log2 (number of bits margined). The count saturates at 127 (after approximately 5.54 × 1012 bits).
+    # MSampleCount Value = 3*log2 (number of bits margined). The count saturates at 127
+    # (after approximately 5.54 × 1012 bits).
 
+    # pylint: disable=too-many-arguments
     def sampler_setup(
         self,
         receiver_number=0x1,
@@ -241,8 +244,7 @@ def get_margin_directions(cfg: ty.Dict[str, ty.Any]) -> ty.Tuple[int, int]:
         up_down = 1
     else:
         raise ValueError(
-            f"Invalid values for margin_type {cfg['margin_type']} and/or "
-            f"margin_direction {cfg['margin_direction']}."
+            f"Invalid values for margin_type {cfg['margin_type']} and/or margin_direction {cfg['margin_direction']}."
         )
 
     return (left_right_none, up_down)
@@ -258,7 +260,8 @@ def get_curr_timestamp() -> int:
     return int(os.popen("date +%s").read().split("\n")[0])
 
 
-def collectLmtOnBDFs(
+# pylint: disable=too-many-arguments,too-many-locals
+def collect_lmt_on_bdfs(
     hostname,
     asset_id,
     model_name,
@@ -295,16 +298,16 @@ def collectLmtOnBDFs(
         steps=steps,
         voltage_or_timing=voltage_or_timing,
     )
-    devices.noCommandOnDeviceList()
-    devices.infoLaneMarginOnDeviceList()
-    devices.noCommandOnDeviceList()
-    devices.clearErrorLogOnDeviceList()
-    devices.normalSettingsOnDeviceList()
-    devices.setupLaneMarginOnDeviceList()
+    devices.no_command_on_device_list()
+    devices.info_lane_margin_on_device_list()
+    devices.no_command_on_device_list()
+    devices.clear_error_log_on_device_list()
+    devices.normal_settings_on_device_list()
+    devices.setup_lane_margin_on_device_list()
 
     start_time = time.time()
     time.sleep(dwell_time)
-    results = devices.collectLaneMarginOnDeviceList(
+    results = devices.collect_lane_margin_on_device_list(
         voltage_or_timing=devices.voltage_or_timing,
         steps=devices.steps,
         up_down=devices.up_down,
@@ -320,6 +323,7 @@ def collectLmtOnBDFs(
     return results
 
 
+# pylint: disable=too-many-locals
 def run_lmt(args, platform_config, utils) -> None:
     """Runs LMT tests on all the interfaces listed in the platform_config."""
     hostname = utils.get_host_name()
@@ -343,7 +347,7 @@ def run_lmt(args, platform_config, utils) -> None:
                 step,
                 args.dwell_time,
             )
-            results = collectLmtOnBDFs(
+            results = collect_lmt_on_bdfs(
                 hostname=hostname,
                 asset_id=asset_id,
                 model_name=model_name,

@@ -8,7 +8,7 @@ import socket
 from pci_lmt.collector import LmtLaneResult
 
 
-def send_to_db(result: LmtLaneResult) -> None:
+def send_to_db(_result: LmtLaneResult) -> None:
     pass
 
 

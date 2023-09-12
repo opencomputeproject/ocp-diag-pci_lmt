@@ -26,7 +26,7 @@ class TestPciLib(testslide.TestCase):
             self.assertEqual(self.device.read(address=0xFF, width=32), -1)
 
     @mock.patch("os.popen", new_callable=mock.mock_open, read_data="ABCD1234")
-    def test_read(self, mock_popen) -> None:
+    def test_read(self, _mock_popen) -> None:
         """Tests if read method works when valid args are given."""
         self.assertEqual(self.device.read(address=0xFF, width=32), 0xABCD1234)
 
@@ -41,7 +41,7 @@ class TestPciLib(testslide.TestCase):
             self.assertEqual(self.device.write(address=0xFF, data=0, width=32), -1)
 
     @mock.patch("os.popen", new_callable=mock.mock_open)
-    def test_write(self, mock_popen) -> None:
+    def test_write(self, _mock_popen) -> None:
         """Tests if write method works when valid args are given."""
         self.assertEqual(self.device.write(address=0xFF, data=0, width=32), 0)
 

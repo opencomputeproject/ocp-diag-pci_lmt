@@ -9,6 +9,7 @@ from pathlib import Path
 # add the local lib to sys.path for discovery when running from source
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
+# pylint: disable=wrong-import-position
 import argparse
 import json
 import logging
@@ -35,8 +36,8 @@ def parse_args() -> argparse.Namespace:
 
 def get_platform_config(config_file: str) -> ty.Dict[str, ty.Any]:
     """Returns the LMT configuration as a dict from the given configuration file."""
-    with open(config_file, "r") as f:
-        return json.loads(f.read())
+    with open(config_file, "r", encoding="utf8") as fd:
+        return json.loads(fd.read())
 
 
 def main() -> None:

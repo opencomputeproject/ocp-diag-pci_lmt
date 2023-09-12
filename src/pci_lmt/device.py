@@ -7,6 +7,8 @@ import logging
 import os
 from collections import namedtuple
 
+from pci_lmt.constants import EXPRESS_SPEED
+
 logger: logging.Logger = logging.getLogger(__name__)
 
 CapabilityInfo = namedtuple("CapabilityInfo", ["err_msg", "id", "version", "offset", "offset_next"])
@@ -26,14 +28,7 @@ class PciDevice:
 
     # Helper maps.
     width_str = {8: "b", 16: "w", 32: "l"}
-    speed_gts = {
-        1: "2.5GT/s",
-        2: "5GT/s",
-        3: "8GT/s",
-        4: "16GT/s",
-        5: "32GT/s",
-        6: "64GT/s",
-    }
+    speed_gts = EXPRESS_SPEED
 
     def __init__(self, bdf: str) -> None:
         """
@@ -61,7 +56,7 @@ class PciDevice:
                 "0x" + os.popen(f"setpci -s {self.bdf} {hex(address)}.{width_str}").readlines()[0].split("\n")[0],
                 16,
             )
-        except BaseException as e:
+        except BaseException as e:  # pylint: disable=broad-exception-caught # FIXME
             print(f"BDF:{self.bdf} Could not read PCI reg at address {hex(address)}. Exception:{e}")
             return -1
 
@@ -80,8 +75,8 @@ class PciDevice:
         width_str = self.width_str[width]
 
         try:
-            os.popen("setpci -s {} {}.{}={}".format(self.bdf, hex(address), width_str, hex(data)))
-        except BaseException as e:
+            os.popen(f"setpci -s {self.bdf} {hex(address)}.{width_str}={hex(data)}")
+        except BaseException as e:  # pylint: disable=broad-exception-caught # FIXME
             print(f"BDF:{self.bdf} Could not write PCI reg at address {hex(address)}. Exception:{e}")
             return -1
 
@@ -94,7 +89,7 @@ class PciDevice:
         def decode_capability(address) -> CapabilityInfo:
             """Decodes the capability info at the given address."""
             data = self.read(address=address, width=32)
-            if data == -1 or data == 0xFFFFFFFF:
+            if data in (-1, 0xFFFFFFFF):
                 cap_info = CapabilityInfo(
                     err_msg=f"ERROR: BDF {self.bdf} decode_capability address {hex(address)}",
                     id=None,
@@ -122,7 +117,7 @@ class PciDevice:
             return
 
         offset_next = self.read(address=self.CAPABILITIES_POINTER, width=32)
-        while offset_next != 0 and offset_next != -1:
+        while offset_next not in (0, -1):
             cap_info = decode_capability(address=offset_next)
             self.cap_dict[cap_info.id] = cap_info
             offset_next = cap_info.offset_next
@@ -158,7 +153,7 @@ class PciDevice:
             return
 
         offset_next = self.EXTENDED_CAPABILITIES_POINTER
-        while offset_next != 0 and offset_next != -1:
+        while offset_next not in (0, -1):
             cap_info = decode_extended_capability(address=offset_next)
             self.ext_cap_dict[cap_info.id] = cap_info
             offset_next = cap_info.offset_next
@@ -189,7 +184,8 @@ class PciDevice:
             )
 
         # Current Link Speed – This field indicates the negotiated Link speed of the given PCI Express Link.
-        # The encoded value specifies a bit location in the Supported Link Speeds Vector (in the Link Capabilities 2 register) that corresponds to the current Link speed.
+        # The encoded value specifies a bit location in the Supported Link Speeds Vector (in the Link Capabilities
+        # 2 register) that corresponds to the current Link speed.
         # Defined encodings are:
         # 0001b Supported Link Speeds Vector field bit 0
         # 0010b Supported Link Speeds Vector field bit 1
