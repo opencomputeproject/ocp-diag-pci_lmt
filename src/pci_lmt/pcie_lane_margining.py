@@ -698,8 +698,8 @@ class PcieDeviceLaneMargining:
 
         if steps not in [
             *range(
-                PARAMETERS["NumVoltageSteps"]["min"],
-                PARAMETERS["NumVoltageSteps"]["max"] + 1,
+                PARAMETERS["NumVoltageSteps"].min,
+                PARAMETERS["NumVoltageSteps"].max + 1,
             )
         ]:
             return {"error": f"ERROR: StepMarginVoltageOffsetUpDownOfDefault - BAD Steps {steps}"}

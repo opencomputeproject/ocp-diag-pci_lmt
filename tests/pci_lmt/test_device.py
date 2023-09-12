@@ -5,7 +5,8 @@
 
 from unittest import mock
 
-import testslide
+# testslide doesnt seem to have type stubs
+import testslide  # type: ignore
 
 from pci_lmt.device import CapabilityInfo, LinkStatusInfo, PciDevice
 

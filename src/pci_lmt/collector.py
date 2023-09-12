@@ -153,7 +153,7 @@ class PcieLmCollector:
                 lane_result = LmtLaneResult(
                     device_info=device.device_info,
                     lane=lane,
-                    receiver_number=self.receiver_number,
+                    receiver_number=ty.cast(int, self.receiver_number),
                     step=steps,
                 )
                 if voltage_or_timing == "TIMING":
@@ -211,6 +211,7 @@ class PcieLmCollector:
     # MSampleCount Value = 3*log2 (number of bits margined). The count saturates at 127
     # (after approximately 5.54 × 1012 bits).
 
+    # FIXME: why isnt this part of __init__?
     # pylint: disable=too-many-arguments
     def sampler_setup(
         self,

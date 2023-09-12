@@ -5,12 +5,14 @@
 
 import logging
 import os
+import typing as ty
 from collections import namedtuple
 
 from pci_lmt.constants import EXPRESS_SPEED
 
 logger: logging.Logger = logging.getLogger(__name__)
 
+# FIXME: make a dataclass with typed fields
 CapabilityInfo = namedtuple("CapabilityInfo", ["err_msg", "id", "version", "offset", "offset_next"])
 LinkStatusInfo = namedtuple("LinkStatusInfo", ["err_msg", "speed", "speed_gts", "width"])
 
@@ -36,8 +38,8 @@ class PciDevice:
         Args: bdf: Bus:Device:Function info
         """
         self.bdf = bdf
-        self.cap_dict = {}
-        self.ext_cap_dict = {}
+        self.cap_dict: ty.Dict[ty.Any, CapabilityInfo] = {}
+        self.ext_cap_dict: ty.Dict[ty.Any, CapabilityInfo] = {}
 
     def read(self, address, width=32) -> int:
         """Helper to read PCI config space register at the given address."""
