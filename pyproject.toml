@@ -44,7 +44,11 @@ tag = false
 push = false
 
 [tool.bumpver.file_patterns]
-"pyproject.toml" = ['current_version = "{version}"', 'version = "{version}"']
+"pyproject.toml" = [
+    'current_version = "{version}"',
+    'version = "{version}"',
+    '__version__ = "{version}"',
+]
 
 [tool.black]
 line-length = 120
