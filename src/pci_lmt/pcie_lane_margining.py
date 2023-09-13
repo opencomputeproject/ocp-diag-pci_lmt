@@ -5,6 +5,7 @@
 
 import logging
 import time
+import typing as ty
 from dataclasses import dataclass
 
 from pci_lmt.constants import MARGIN_RESPONSE, PARAMETERS
@@ -17,8 +18,8 @@ TIMEOUT = 0.5  # seconds
 
 # Decorator function to check the lane_errors status prior performing any
 # operations and update lane_errors status accordingly.
-def handle_lane_status(function_call):
-    def wrapper(self, lane: int, *args, **kwargs):
+def handle_lane_status(method: ty.Callable):
+    def wrapper(self: "PcieDeviceLaneMargining", lane: int, *args, **kwargs):
         # Skip invoking the function if the device is faulty.
         if self.device_error is not None:
             return {"error": self.device_error}
@@ -29,15 +30,17 @@ def handle_lane_status(function_call):
             return {"error": self.lane_errors[lane]}
 
         # Invoke the function and update the lane_errors if the function failed.
-        ret = function_call(self, lane, *args, **kwargs)
+        ret = method(self, lane, *args, **kwargs)
         if ret["error"] is not None:
-            logger.warning(f"{function_call} failed for BDF {self.device.bdf} lane {lane}: {ret['error']}")
+            logger.warning(f"{method} failed for BDF {self.device.bdf} lane {lane}: {ret['error']}")
             self.lane_errors[lane] = ret["error"]
         return ret
 
     return wrapper
 
 
+# FIXME: consider making these dataclass instances immutable after construction instead of
+#  assigning fields in PcieDeviceLaneMargining; that would get rid of all these default values here
 @dataclass
 class LmtDeviceInfo:  # pylint: disable=too-many-instance-attributes
     """Class to hold device level info for the LMT test."""
@@ -61,10 +64,16 @@ class LmtDeviceInfo:  # pylint: disable=too-many-instance-attributes
     reserved: int = 0
 
 
+# FIXME: a lot of methods in this class return arbitrary dicts; replace with actual typed objects
+# FIXME: returning errors in python is usually done thru exceptions; this {"error": any} returned in
+# the methods here makes it very difficult to write correct return types and is non-pythonic
 class PcieDeviceLaneMargining:
     def __init__(self, device: PciDevice):
         self.device = device
         self.device_info = LmtDeviceInfo()
+        # FIXME: bdf is in self.device but also in device_info? (prev was a field on this object
+        # which is equivalent to current usage). device_info should be a derived property or otherwise
+        # constructed or part of the device itself
         self.device_info.bdf = device.bdf
         self.primed = False
 
@@ -100,14 +109,19 @@ class PcieDeviceLaneMargining:
     @handle_lane_status
     def write_margining_lane_control_register(
         self,
-        lane=0,
-        receiver_number=0x0,
-        margin_type=0x7,
-        usage_model=0x0,
-        margin_payload=0x9C,
+        lane: int = 0,
+        receiver_number: int = 0x0,
+        # FIXME: these magical constants should really be either named or better enums
+        margin_type: int = 0x7,
+        usage_model: int = 0x0,
+        margin_payload: int = 0x9C,
     ):
         address = 0x8 + (lane * 0x4)
-        data = self.device.read(address=self.cap_lmt_offset + address, width=16)
+        # FIXME: since due to the typings so far, self.cap_lmt_offset is Optional[int], it may be None
+        # here for the type checker, hence the need for cast. Correct this by making the CapabilityInfo
+        # class immutable after construction
+        cap_lmt_offset = ty.cast(int, self.cap_lmt_offset)
+        data = self.device.read(address=cap_lmt_offset + address, width=16)
         if data == -1:
             return {"error": "ERROR: write_MarginingLaneControlRegister - read"}
 
@@ -129,15 +143,18 @@ class PcieDeviceLaneMargining:
         # The default value is 0x9C.
         # This field must be reset to the default value if the Port goes to DL_Down status.
         data = data | ((margin_payload & 0xFF) << 8)  # 15:8
-        err = self.device.write(address=self.cap_lmt_offset + address, data=data, width=16)
+        err = self.device.write(address=cap_lmt_offset + address, data=data, width=16)
         if err == -1:
             return {"error": "ERROR: write_MarginingLaneControlRegister - write"}
         return {"error": None}
 
     @handle_lane_status
-    def decode_margining_lane_status_register(self, lane=0):
+    def decode_margining_lane_status_register(self, lane: int = 0):
         address = 0xA + (lane * 0x4)
-        data = self.device.read(address=self.cap_lmt_offset + address, width=16)
+        # FIXME: since due to the typings so far, self.cap_lmt_offset is Optional[int], it may be None
+        # here for the type checker, hence the need for cast. Correct this by making the CapabilityInfo
+        # class immutable after construction
+        data = self.device.read(address=ty.cast(int, self.cap_lmt_offset) + address, width=16)
         if data == -1:
             return {"error": "ERROR: decode_MarginingLaneStatusRegister"}
         # Receiver Number Status. – See Section 8.4.4 for details. The default value is 000b.
@@ -180,7 +197,7 @@ class PcieDeviceLaneMargining:
     # Lane Margining at Receiver is is permitted to be suspended while the Link is in Recovery for independent samplers.
     # Lane Margining at Receiver is not supported by PCIe Links operating at 2.5 GT/s, 5.0 GT/s, or 8.0 GT/s.
     @handle_lane_status
-    def no_command(self, lane):
+    def no_command(self, lane: int):
         # No Command is also an independent command in Upstream direction. The expected Response is No Command with the
         # Receiver Number = 000b.
         self.write_margining_lane_control_register(
@@ -199,7 +216,7 @@ class PcieDeviceLaneMargining:
         return {"error": None}
 
     @handle_lane_status
-    def access_retimer_register(self, lane, receiver_number, register_offset):
+    def access_retimer_register(self, lane: int, receiver_number: int, register_offset: int):
         # receiver_number:0x4,0x2
         # margin_payload:Registers Offset in Bytes 0x0-0x87, 0xA0-0xFF
         # margin_type:0x1
@@ -235,12 +252,13 @@ class PcieDeviceLaneMargining:
         return {"error": None, "register_value": register_value}
 
     @handle_lane_status
-    def fetch_margin_control_capabilities(self, lane, receiver_number):
+    def fetch_margin_control_capabilities(self, lane: int, receiver_number: int):
         # ResponseMarginPayload: Margin Payload[7:5] = Reserved;
         # Margin Payload[4:0] = {Mind_error_sampler, Msample_reporting_method, Mind_left_right_timing,
         # Mind_up_down_voltage, Mvoltage_supported}
         if receiver_number not in [*range(0x1, 0x7)]:
             return {"error": f"ERROR: FetchMarginControlCapabilities - Invalid receiver_number {receiver_number}"}
+
         self.no_command(lane=lane)
         self.write_margining_lane_control_register(
             lane=lane,
@@ -275,7 +293,7 @@ class PcieDeviceLaneMargining:
         return {"error": None}
 
     @handle_lane_status
-    def fetch_num_voltage_steps(self, lane, receiver_number):
+    def fetch_num_voltage_steps(self, lane: int, receiver_number: int):
         # ResponseMarginPayload: Margin Payload [7] = Reserved Margin Payload[6:0] = MNumVoltageSteps
         if receiver_number not in [*range(0x1, 0x7)]:
             return {"error": f"ERROR: FetchNumVoltageSteps - BAD receiver_number {receiver_number}"}
@@ -299,7 +317,7 @@ class PcieDeviceLaneMargining:
         return {"error": None}
 
     @handle_lane_status
-    def fetch_num_timing_steps(self, lane, receiver_number):
+    def fetch_num_timing_steps(self, lane: int, receiver_number: int):
         # ResponseMarginPayload: Margin Payload [7:6] = Reserved Margin Payload [5:0] = MNumTimingSteps
         if receiver_number not in [*range(0x1, 0x7)]:
             return {
@@ -325,7 +343,7 @@ class PcieDeviceLaneMargining:
         return {"error": None}
 
     @handle_lane_status
-    def fetch_max_timing_offset(self, lane, receiver_number):
+    def fetch_max_timing_offset(self, lane: int, receiver_number: int):
         # ResponseMarginPayload: Margin Payload [7] = Reserved Margin Payload[6:0] = MMaxTimingOffset
         if receiver_number not in [*range(0x1, 0x7)]:
             return {"error": f"ERROR: FetchMaxTimingOffset - BAD receiver_number {receiver_number}"}
@@ -349,7 +367,7 @@ class PcieDeviceLaneMargining:
         return {"error": None}
 
     @handle_lane_status
-    def fetch_max_voltage_offset(self, lane, receiver_number):
+    def fetch_max_voltage_offset(self, lane: int, receiver_number: int):
         # ResponseMarginPayload: Margin Payload [7] = Reserved Margin Payload[6:0] = MMaxVoltageOffset
         if receiver_number not in [*range(0x1, 0x7)]:
             return {
@@ -375,7 +393,7 @@ class PcieDeviceLaneMargining:
         return {"error": None}
 
     @handle_lane_status
-    def fetch_sampling_rate_voltage(self, lane, receiver_number):
+    def fetch_sampling_rate_voltage(self, lane: int, receiver_number: int):
         # ResponseMarginPayload: Margin Payload [7:6] = Reserved Margin Payload[5:0] = { MSamplingRateVoltage [5:0]}
         if receiver_number not in [*range(0x1, 0x7)]:
             return {"error": f"ERROR: FetchSamplingRateVoltage - BAD receiver_number {receiver_number}"}
@@ -399,7 +417,7 @@ class PcieDeviceLaneMargining:
         return {"error": None}
 
     @handle_lane_status
-    def fetch_sampling_rate_timing(self, lane, receiver_number):
+    def fetch_sampling_rate_timing(self, lane: int, receiver_number: int):
         # ResponseMarginPayload: Margin Payload [7:6] = Reserved Margin Payload[5:0] = { MSamplingRateTiming [5:0]}
         if receiver_number not in [*range(0x1, 0x7)]:
             return {"error": f"ERROR: FetchSamplingRateTiming - BAD receiver_number {receiver_number}"}
@@ -423,7 +441,7 @@ class PcieDeviceLaneMargining:
         return {"error": None}
 
     @handle_lane_status
-    def fetch_sample_count(self, lane, receiver_number):
+    def fetch_sample_count(self, lane: int, receiver_number: int):
         # ResponseMarginPayload: Margin Payload [7] = Reserved Margin Payload[6:0] = MSampleCount
         if receiver_number not in [*range(0x1, 0x7)]:
             return {"error": f"ERROR: FetchSampleCount - BAD receiver_number {receiver_number}"}
@@ -456,7 +474,7 @@ class PcieDeviceLaneMargining:
         }
 
     @handle_lane_status
-    def fetch_max_lanes(self, lane, receiver_number):
+    def fetch_max_lanes(self, lane: int, receiver_number: int):
         # ResponseMarginPayload: Margin Payload [7:5] = Reserved Margin Payload[4:0] = MMaxLanes
         if receiver_number not in [*range(0x1, 0x7)]:
             return {"error": f"ERROR: FetchMaxLanes - BAD receiver_number {receiver_number}"}
@@ -480,7 +498,7 @@ class PcieDeviceLaneMargining:
         return {"error": None}
 
     @handle_lane_status
-    def fetch_reserved(self, lane, receiver_number, register_offset):
+    def fetch_reserved(self, lane: int, receiver_number: int, register_offset: int):
         # ResponseMarginPayload: register_offset Range 91-9Fh
         # Margin Payload[7:0] = Reserved
         if receiver_number not in [*range(0x1, 0x7)] or register_offset not in [*range(0x91, 0xA0)]:
@@ -510,7 +528,7 @@ class PcieDeviceLaneMargining:
         return {"error": None}
 
     @handle_lane_status
-    def set_error_count_limit(self, lane, receiver_number, error_count_limit):
+    def set_error_count_limit(self, lane: int, receiver_number: int, error_count_limit: int):
         # ResponseMarginPayload: Margin Payload [7:6] = 11b Margin Payload[5:0] = Error Count Limit registered by the
         # target Receiver
         if receiver_number not in [*range(0x1, 0x7)]:
@@ -535,7 +553,7 @@ class PcieDeviceLaneMargining:
         return {"error": None}
 
     @handle_lane_status
-    def goto_normal_settings(self, lane, receiver_number):
+    def goto_normal_settings(self, lane: int, receiver_number: int):
         # ResponseMarginPayload: 0Fh
         if receiver_number not in [*range(0x0, 0x7)]:
             return {"error": f"ERROR: GotoNormalSettings - BAD receiver_number {receiver_number}"}
@@ -559,7 +577,7 @@ class PcieDeviceLaneMargining:
         return {"error": None, "value": value}
 
     @handle_lane_status
-    def clear_error_log(self, lane, receiver_number):
+    def clear_error_log(self, lane: int, receiver_number: int):
         # ResponseMarginPayload: 55h
         if receiver_number not in [*range(0x0, 0x7)]:
             return {"error": f"ERROR: ClearErrorLog - BAD receiver_number {receiver_number}"}
@@ -583,7 +601,9 @@ class PcieDeviceLaneMargining:
         return {"error": None, "value": value}
 
     @handle_lane_status
-    def step_margin_timing_offset_right_left_of_default(self, lane, receiver_number, left_right_none=0, steps=6):
+    def step_margin_timing_offset_right_left_of_default(
+        self, lane: int, receiver_number: int, left_right_none: int = 0, steps: int = 6
+    ):
         # LeftRightNone
         # 0 indicates to move the Receiver to the right of the normal setting to be used when ind_left_right_timing = 1.
         # 1 indicates to move the Receiver to the left of the normal setting to be used when ind_left_right_timing = 1.
@@ -628,7 +648,7 @@ class PcieDeviceLaneMargining:
         return self.decode_step_margin_timing_offset_right_left_of_default(lane)
 
     @handle_lane_status
-    def decode_step_margin_timing_offset_right_left_of_default(self, lane):
+    def decode_step_margin_timing_offset_right_left_of_default(self, lane: int):
         # LeftRightNone
         # 0 indicates to move the Receiver to the right of the normal setting to be used when ind_left_right_timing = 1.
         # 1 indicates to move the Receiver to the left of the normal setting to be used when ind_left_right_timing = 1.
@@ -671,7 +691,9 @@ class PcieDeviceLaneMargining:
         }
 
     @handle_lane_status
-    def step_margin_voltage_offset_up_down_of_default(self, lane, receiver_number, up_down=0, steps=32):
+    def step_margin_voltage_offset_up_down_of_default(
+        self, lane: int, receiver_number: int, up_down: int = 0, steps: int = 32
+    ):
         # UpDown
         # 0 indicates to move the Receiver to the Up from Normal.
         # 1 indicates to move the Receiver to the Down from Normal.
@@ -720,7 +742,7 @@ class PcieDeviceLaneMargining:
         return self.decode_step_margin_voltage_offset_up_down_of_default(lane)
 
     @handle_lane_status
-    def decode_step_margin_voltage_offset_up_down_of_default(self, lane):
+    def decode_step_margin_voltage_offset_up_down_of_default(self, lane: int):
         # UpDown
         # 0 indicates to move the Receiver to the right of the normal setting to be used when ind_left_right_timing = 1.
         # 1 indicates to move the Receiver to the left of the normal setting to be used when ind_left_right_timing = 1.

@@ -3,11 +3,14 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
+import argparse
+
 from pci_lmt import __version__ as PCI_LMT_VERSION
 
 
-def add_common_args(parser) -> None:
+def add_common_args(parser: argparse.ArgumentParser) -> None:
     """Adds common CLI args to the given parser."""
+
     parser.add_argument(
         "-e",
         dest="error_count_limit",

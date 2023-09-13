@@ -6,6 +6,7 @@
 import dataclasses as dc
 import typing as ty
 
+# FIXME: this looks like an enum
 EXPRESS_TYPES: ty.Dict[int, str] = {
     0x0: "endpoint",
     0x1: "legacy_endpoint",
@@ -18,6 +19,7 @@ EXPRESS_TYPES: ty.Dict[int, str] = {
     0xA: "root_complex_event_collector",
 }
 
+# FIXME: this looks like an enum
 EXPRESS_SPEED: ty.Dict[int, str] = {
     1: "2.5GT/s",
     2: "5GT/s",
@@ -38,6 +40,7 @@ EXPRESS_SPEED: ty.Dict[int, str] = {
 # errors detected as defined in Section 8.4.4. Note that MErrorCount might be greater than Error Count Limit.
 # Margin Payload[5:0] = MErrorCount
 
+# FIXME: this looks like an enum
 MARGIN_RESPONSE: ty.Dict[int, str] = {
     0: "Too Many Errors",
     1: "Setup for Margin In Progress",

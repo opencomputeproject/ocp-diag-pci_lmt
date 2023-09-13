@@ -19,91 +19,90 @@ logger: logging.Logger = logging.getLogger(__name__)
 
 
 class PcieLmCollector:
-    def __init__(self, bdf_list):
+    def __init__(self, bdf_list: ty.List[str]):
         self.receiver_number = None
         self.error_count_limit = None
         self.left_right_none = None
         self.up_down = None
         self.steps = None
         self.voltage_or_timing = None
-        self.device_list = self.setup_device_list_from_bdf_list(bdf_list)
+        self.devices = [PcieDeviceLaneMargining(PciDevice(bdf)) for bdf in bdf_list]
 
-    def setup_device_list_from_bdf_list(self, bdf_list):
-        device_list = []
-        for bdf in bdf_list:
-            device = PciDevice(bdf)
-            device_list.append(PcieDeviceLaneMargining(device))
-        return device_list
+    @property
+    def _primed_devices(self) -> ty.Generator[PcieDeviceLaneMargining, None, None]:
+        for dev in self.devices:
+            if not dev.primed:
+                continue
+            yield dev
 
     def normal_settings_on_device_list(self):
-        for device in self.device_list:
-            if device.primed:
-                for lane in range(device.device_info.width):
-                    device.goto_normal_settings(lane=lane, receiver_number=self.receiver_number)
+        for dev in self._primed_devices:
+            for lane in range(dev.device_info.width):
+                dev.goto_normal_settings(lane=lane, receiver_number=self.receiver_number)
 
     def clear_error_log_on_device_list(self):
-        for device in self.device_list:
-            if device.primed:
-                for lane in range(device.device_info.width):
-                    device.clear_error_log(lane=lane, receiver_number=self.receiver_number)
+        for dev in self._primed_devices:
+            for lane in range(dev.device_info.width):
+                dev.clear_error_log(lane=lane, receiver_number=self.receiver_number)
 
     def no_command_on_device_list(self):
-        for device in self.device_list:
-            if device.primed:
-                for lane in range(device.device_info.width):
-                    device.no_command(lane=lane)
+        for dev in self._primed_devices:
+            for lane in range(dev.device_info.width):
+                dev.no_command(lane=lane)
 
-    def info_lane_margin_on_device_list(self):  # noqa (FLAKE8) C901
-        for device in self.device_list:
+    def info_lane_margin_on_device_list(self):
+        for dev in self.devices:
             for lane in [0]:
-                ret = device.fetch_margin_control_capabilities(lane=lane, receiver_number=self.receiver_number)
+                ret = dev.fetch_margin_control_capabilities(lane=lane, receiver_number=self.receiver_number)
                 if ret["error"] is None:
-                    device.primed = True
+                    dev.primed = True
                     logger.info(
                         "Device %s ReceiverNum %d PRIMED: %s",
-                        device.device_info.bdf,
+                        dev.device_info.bdf,
                         self.receiver_number,
-                        device.device_info,
+                        dev.device_info,
                     )
-                else:
-                    logger.warning(
-                        "Device %s ReceiverNum %d NOT PRIMED: %s",
-                        device.device_info.bdf,
-                        self.receiver_number,
-                        ret["error"],
-                    )
-                    # Mark all lanes faulty.
-                    for lane in range(device.device_info.width):
-                        device.lane_errors[lane] = ret["error"]
                     continue
 
-    def setup_lane_margin_on_device_list(self):
-        for device in self.device_list:
-            if device.primed:
-                for lane in range(device.device_info.width):
-                    device.set_error_count_limit(
-                        lane=lane,
-                        receiver_number=self.receiver_number,
-                        error_count_limit=self.error_count_limit,
-                    )
+                logger.warning(
+                    "Device %s ReceiverNum %d NOT PRIMED: %s",
+                    dev.device_info.bdf,
+                    self.receiver_number,
+                    ret["error"],
+                )
+                # Mark all lanes faulty.
+                for lane in range(dev.device_info.width):
+                    dev.lane_errors[lane] = ret["error"]
 
+    def setup_lane_margin_on_device_list(self):
+        for dev in self._primed_devices:
+            for lane in range(dev.device_info.width):
+                dev.set_error_count_limit(
+                    lane=lane,
+                    receiver_number=self.receiver_number,
+                    error_count_limit=self.error_count_limit,
+                )
+
+    # FIXME: `voltage_or_timing` should be an enum; dont use strings for magic constants
     # pylint: disable=too-many-branches
     def collect_lane_margin_on_device_list(
         self, voltage_or_timing="TIMING", steps=16, up_down=0, left_right_none=0
     ) -> ty.List[LmtLaneResult]:
         """Returns the Lane Margining Test result from all lanes as a list."""
         results = []
-        for device in self.device_list:
+        for dev in self.devices:
             # Collect results from all devices and lanes
             # irrespective of device prime or lane error status.
-            for lane in range(device.device_info.width):
+            for lane in range(dev.device_info.width):
                 lane_result = LmtLaneResult(
-                    device_info=device.device_info,
+                    device_info=dev.device_info,
                     lane=lane,
                     receiver_number=ty.cast(int, self.receiver_number),
                     step=steps,
                 )
                 if voltage_or_timing == "TIMING":
+                    # FIXME: move this string construction in a separate method; or better make it
+                    # into a typed enum
                     lane_result.margin_type = "timing_"
                     if left_right_none == 0:
                         lane_result.margin_type += "right"
@@ -111,7 +110,7 @@ class PcieLmCollector:
                         lane_result.margin_type += "left"
                     else:
                         lane_result.margin_type += "none"
-                    stepper = device.step_margin_timing_offset_right_left_of_default(
+                    stepper = dev.step_margin_timing_offset_right_left_of_default(
                         lane=lane,
                         receiver_number=self.receiver_number,
                         left_right_none=left_right_none,
@@ -126,14 +125,14 @@ class PcieLmCollector:
                         lane_result.margin_type += "down"
                     else:
                         lane_result.margin_type += "none"
-                    stepper = device.step_margin_voltage_offset_up_down_of_default(
+                    stepper = dev.step_margin_voltage_offset_up_down_of_default(
                         lane=lane,
                         receiver_number=self.receiver_number,
                         up_down=up_down,
                         steps=steps,
                     )
 
-                sampler = device.fetch_sample_count(lane=lane, receiver_number=self.receiver_number)
+                sampler = dev.fetch_sample_count(lane=lane, receiver_number=self.receiver_number)
                 if stepper["error"] or sampler["error"]:
                     lane_result.error = True
                     lane_result.error_msg = stepper["error"] if stepper["error"] else sampler["error"]

@@ -3,18 +3,36 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
+import dataclasses as dc
 import logging
 import os
 import typing as ty
-from collections import namedtuple
 
 from pci_lmt.constants import EXPRESS_SPEED
 
 logger: logging.Logger = logging.getLogger(__name__)
 
-# FIXME: make a dataclass with typed fields
-CapabilityInfo = namedtuple("CapabilityInfo", ["err_msg", "id", "version", "offset", "offset_next"])
-LinkStatusInfo = namedtuple("LinkStatusInfo", ["err_msg", "speed", "speed_gts", "width"])
+
+@dc.dataclass
+class CapabilityInfo:  # pylint: disable=too-few-public-methods
+    # FIXME: should this error msg really be part of capability info or is it just a mechanism
+    # to report errors while detecting pci caps? likely the second, so should be removed.
+    # This would also make all of these optionals unnecessary, since objects can be fully constructed
+    # as opposed to being in an union state of either 1. err_msg is valid and none others or 2. err_msg
+    # is invalid and all others are valid. It is basically impossible to write correct code to handle this
+    err_msg: ty.Optional[str]
+    id: ty.Optional[int]
+    version: ty.Optional[int]
+    offset: ty.Optional[int]
+    offset_next: int
+
+
+@dc.dataclass
+class LinkStatusInfo:  # pylint: disable=too-few-public-methods
+    err_msg: ty.Optional[str]
+    speed: ty.Optional[int]
+    speed_gts: ty.Optional[str]
+    width: ty.Optional[int]
 
 
 class PciDevice:
@@ -136,7 +154,7 @@ class PciDevice:
                     id=None,
                     version=None,
                     offset=None,
-                    offset_next=None,
+                    offset_next=0,
                 )
             else:
                 cap_info = CapabilityInfo(
@@ -162,7 +180,10 @@ class PciDevice:
 
     def get_link_status(self) -> LinkStatusInfo:
         """Returns the link status of the PCI device."""
+        # FIXME: this is likely not the place to populate an instance field; this detection should be
+        # part of __init__ and get an object correct by construction
         self.create_dict_capabilities()
+
         if self.PCI_EXPRESS_CAP_ID not in self.cap_dict:
             err_msg = f"BDF:{self.bdf} PCI Express capability not found"
             logger.warning(err_msg)
@@ -173,7 +194,9 @@ class PciDevice:
                 width=None,
             )
 
-        offset = self.cap_dict[self.PCI_EXPRESS_CAP_ID].offset + self.LINK_STATUS_REG_OFFSET
+        # FIXME: need to cast to int because at this point the `offset` field is optional, so
+        # it may have a None in it, which cannot be used with addition
+        offset = ty.cast(int, self.cap_dict[self.PCI_EXPRESS_CAP_ID].offset) + self.LINK_STATUS_REG_OFFSET
         data = self.read(address=offset, width=16)
         if data == -1:
             err_msg = f"BDF:{self.bdf} Couldn't read Link status"
@@ -213,7 +236,10 @@ class PciDevice:
 
     def get_lmt_cap_info(self) -> CapabilityInfo:
         """Returns the Lane Margining Capability info."""
+        # FIXME: this is likely not the place to populate an instance field; this detection should be
+        # part of __init__ and get an object correct by construction
         self.create_dict_extended_capabilities()
+
         if self.PCI_LMT_EXT_CAP_ID not in self.ext_cap_dict:
             err_msg = f"BDF:{self.bdf} PCI LMT capability not found"
             logger.warning(err_msg)
@@ -222,6 +248,7 @@ class PciDevice:
                 id=None,
                 version=None,
                 offset=None,
-                offset_next=None,
+                offset_next=0,
             )
+
         return self.ext_cap_dict[self.PCI_LMT_EXT_CAP_ID]

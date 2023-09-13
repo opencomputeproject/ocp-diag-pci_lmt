@@ -62,7 +62,7 @@ disable = [
     "missing-function-docstring",
     "logging-fstring-interpolation",
 ]
-good-names = ["fd", "e"]
+good-names = ["fd", "e", "id"]
 
 [tool.isort]
 profile = "black"
