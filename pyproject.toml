@@ -1,0 +1,72 @@
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ocptv-pci_lmt"
+version = "1.2.0"
+description = "PCI Lane Margining Tool"
+readme = "README.md"
+authors = [
+    { name = "OCP Test & Validation", email = "ocp-test-validation@OCP-All.groups.io" },
+]
+license = { file = "LICENSE" }
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.9",
+    "Topic :: System :: Hardware",
+]
+keywords = ["ocp", "ocptv", "pci", "pcie", "lmt"]
+dependencies = []
+requires-python = ">=3.9"
+
+[project.optional-dependencies]
+dev = ["black", "bumpver", "isort", "pylint", "mypy", "build", "twine"]
+
+[project.urls]
+"Homepage" = "https://github.com/opencomputeproject/ocp-diag-pci_lmt"
+"Bug reports" = "https://github.com/opencomputeproject/ocp-diag-pci_lmt/issues"
+"Source" = "https://github.com/opencomputeproject/ocp-diag-pci_lmt"
+
+[project.scripts]
+pci_lmt = "pci_lmt_bin.main:main"
+
+# Increment MAJOR version when you make incompatible API changes
+# Increment MINOR version when you add functionality in a backward compatible manner
+# Increment PATCH version when you make backward compatible bug fixes
+[tool.bumpver]
+current_version = "1.2.0"
+version_pattern = "MAJOR.MINOR.PATCH"
+commit_message = "bump version {old_version} -> {new_version}"
+commit = true
+tag = false
+push = false
+
+[tool.bumpver.file_patterns]
+"pyproject.toml" = [
+    'current_version = "{version}"',
+    'version = "{version}"',
+    '__version__ = "{version}"',
+]
+
+[tool.black]
+line-length = 120
+
+[tool.pylint]
+max-line-length = 120
+max-args = 8
+min-public-methods = 1
+max-public-methods = 25
+init-hook = 'import sys; sys.path.append("src")'
+disable = [
+    # @mimir-d: ideally these should be removed
+    "missing-module-docstring",
+    "missing-class-docstring",
+    "missing-function-docstring",
+    "logging-fstring-interpolation",
+]
+good-names = ["fd", "e", "id"]
+
+[tool.isort]
+profile = "black"

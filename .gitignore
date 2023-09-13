@@ -1,1 +1,8 @@
 __pycache__
+/.vscode
+/env
+/*.json
+*.egg-info
+/build
+/.mypy_cache
+/dist
