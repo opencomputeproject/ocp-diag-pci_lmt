@@ -44,11 +44,8 @@ tag = false
 push = false
 
 [tool.bumpver.file_patterns]
-"pyproject.toml" = [
-    'current_version = "{version}"',
-    'version = "{version}"',
-    '__version__ = "{version}"',
-]
+"pyproject.toml" = ['^current_version = "{version}"', '^version = "{version}"']
+"src/pci_lmt/__init__.py" = ['^__version__ = "{version}"']
 
 [tool.black]
 line-length = 120
