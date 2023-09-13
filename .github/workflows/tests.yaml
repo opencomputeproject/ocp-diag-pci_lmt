@@ -20,7 +20,7 @@ jobs:
           pip install -r requirements.txt
       - name: Lint with black
         run: |
-          black . --check
+          black . --check --preview
       - name: Lint with pylint
         run: |
           pylint src tests --disable=fixme

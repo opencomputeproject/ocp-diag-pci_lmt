@@ -11,12 +11,11 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 # pylint: disable=wrong-import-position
 import argparse
-import json
 import logging
-import typing as ty
 
 from pci_lmt import collector
 from pci_lmt.args import add_common_args
+from pci_lmt.config import read_platform_config
 from pci_lmt.host import HostInfo
 from pci_lmt.results import Reporter
 
@@ -36,12 +35,6 @@ def parse_args() -> argparse.Namespace:
     return args
 
 
-def get_platform_config(config_file: str) -> ty.Dict[str, ty.Any]:
-    """Returns the LMT configuration as a dict from the given configuration file."""
-    with open(config_file, "r", encoding="utf8") as fd:
-        return json.loads(fd.read())
-
-
 def main() -> None:
     """Main entry point to run PCIe Lane Margining Test"""
     args = parse_args()
@@ -52,10 +45,9 @@ def main() -> None:
         level=logging.ERROR if args.verbose == 0 else logging.INFO if args.verbose == 1 else logging.DEBUG,
     )
 
-    platform_config = get_platform_config(args.config_file)
     collector.run_lmt(
         args=args,
-        platform_config=platform_config,
+        config=read_platform_config(args.config_file),
         host=HostInfo(),
         reporter=Reporter(),
     )

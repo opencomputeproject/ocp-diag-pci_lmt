@@ -3,13 +3,14 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-import json
+import argparse
 import logging
 import os
 import time
 import typing as ty
 
 from pci_lmt import __version__ as PCI_LMT_VERSION
+from pci_lmt.config import PlatformConfig
 from pci_lmt.device import PciDevice
 from pci_lmt.host import HostInfo
 from pci_lmt.pcie_lane_margining import PcieDeviceLaneMargining
@@ -176,27 +177,6 @@ class PcieLmCollector:
         self.voltage_or_timing = voltage_or_timing
 
 
-def get_margin_directions(cfg: ty.Dict[str, ty.Any]) -> ty.Tuple[int, int]:
-    """Returns the margin direction as a tuple."""
-    left_right_none = -1
-    up_down = -1
-    margin_info = (cfg["margin_type"], cfg["margin_direction"])
-    if margin_info == ("TIMING", "right"):
-        left_right_none = 0
-    elif margin_info == ("TIMING", "left"):
-        left_right_none = 1
-    elif margin_info == ("VOLTAGE", "up"):
-        up_down = 0
-    elif margin_info == ("VOLTAGE", "down"):
-        up_down = 1
-    else:
-        raise ValueError(
-            f"Invalid values for margin_type {cfg['margin_type']} and/or margin_direction {cfg['margin_direction']}."
-        )
-
-    return (left_right_none, up_down)
-
-
 def get_run_id() -> str:
     """Returns an unique ID using RNG."""
     return os.popen("od -N 16 -t uL -An /dev/urandom | sed 's/ //g'").read().split("\n")[0]
@@ -271,20 +251,20 @@ def collect_lmt_on_bdfs(
 
 
 # pylint: disable=too-many-locals
-def run_lmt(args, platform_config, host: HostInfo, reporter: Reporter) -> None:
+def run_lmt(args: argparse.Namespace, config: PlatformConfig, host: HostInfo, reporter: Reporter) -> None:
     """Runs LMT tests on all the interfaces listed in the platform_config."""
 
-    logger.info("Loading config: %s", json.dumps(platform_config, indent=2))
+    logger.info("Loading config: %s", config)
     csv_header_done = False
 
-    for cfg in platform_config["lmt_groups"]:
-        annotation = args.annotation if args.annotation else cfg["name"]
-        left_right_none, up_down = get_margin_directions(cfg)
+    for group in config.lmt_groups:
+        annotation = args.annotation if args.annotation else group.name
+        left_right_none, up_down = group.margin_directions_tuple
         # Loop through each step running LMT on all BDFs.
-        for step in cfg["margin_steps"]:
-            bdf_list = cfg["bdf_list"]
-            margin_type = cfg["margin_type"]
-            receiver_number = cfg["receiver_number"]
+        for step in group.margin_steps:
+            bdf_list = group.bdf_list
+            margin_type = group.margin_type
+            receiver_number = group.receiver_number
             logger.info(
                 "Running %s margining test on %d BDFs Rx %d Step %d for %d seconds.",
                 margin_type,
