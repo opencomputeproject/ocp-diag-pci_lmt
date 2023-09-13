@@ -250,12 +250,13 @@ def collect_lmt_on_bdfs(
     return results
 
 
+# FIXME: the args param should not be here, arg parsing and usage should be limited to main.py
+# instead, replace this with the actual inputs needed; if it's too many, a RuntimeConfig can be made
 # pylint: disable=too-many-locals
 def run_lmt(args: argparse.Namespace, config: PlatformConfig, host: HostInfo, reporter: Reporter) -> None:
     """Runs LMT tests on all the interfaces listed in the platform_config."""
 
     logger.info("Loading config: %s", config)
-    csv_header_done = False
 
     for group in config.lmt_groups:
         annotation = args.annotation if args.annotation else group.name
@@ -289,15 +290,4 @@ def run_lmt(args: argparse.Namespace, config: PlatformConfig, host: HostInfo, re
             )
             for result in results:
                 logger.info(result)
-                if args.output == "scribe":
-                    reporter.write(result)
-                elif args.output == "json":
-                    print(result.to_json())
-                elif args.output == "csv":
-                    header, row = result.to_csv()
-                    if not csv_header_done:
-                        print(header)
-                        csv_header_done = True
-                    print(row)
-                else:
-                    raise ValueError("Output must be one of 'scribe', 'json', or 'csv'")
+                reporter.write(result)

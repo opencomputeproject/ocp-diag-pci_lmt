@@ -66,3 +66,21 @@ class LmtLaneResult:  # pylint: disable=too-many-instance-attributes,too-few-pub
 class Reporter:
     def write(self, _result: LmtLaneResult) -> None:
         pass
+
+
+class JsonStdoutReporter(Reporter):
+    def write(self, result: LmtLaneResult) -> None:
+        print(result.to_json())
+
+
+class CsvStdoutReporter(Reporter):
+    def __init__(self):
+        self.__emitted_header = False
+
+    def write(self, result: LmtLaneResult) -> None:
+        header, row = result.to_csv()
+        if not self.__emitted_header:
+            print(header)
+            self.__emitted_header = True
+
+        print(row)

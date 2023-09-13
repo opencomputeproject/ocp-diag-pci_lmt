@@ -33,13 +33,6 @@ def add_common_args(parser: argparse.ArgumentParser) -> None:
         default="",
     )
     parser.add_argument(
-        "-o",
-        dest="output",
-        type=str,
-        help="Output format. Supported formats: scribe, json. Default: json",
-        default="json",
-    )
-    parser.add_argument(
         "-v",
         dest="verbose",
         action="count",
