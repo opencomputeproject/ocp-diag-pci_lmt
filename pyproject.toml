@@ -14,12 +14,12 @@ license = { file = "LICENSE" }
 classifiers = [
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.8",
     "Topic :: System :: Hardware",
 ]
 keywords = ["ocp", "ocptv", "pci", "pcie", "lmt"]
 dependencies = []
-requires-python = ">=3.9"
+requires-python = ">=3.8"
 
 [project.optional-dependencies]
 dev = ["black", "bumpver", "isort", "pylint", "mypy", "build", "twine"]
