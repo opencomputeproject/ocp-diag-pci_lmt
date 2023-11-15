@@ -54,6 +54,7 @@ class PcieLmCollector:
     def info_lane_margin_on_device_list(self):
         for dev in self.devices:
             for lane in [0]:
+                ret = dev.goto_normal_settings(lane=lane, receiver_number=self.receiver_number)
                 ret = dev.fetch_margin_control_capabilities(lane=lane, receiver_number=self.receiver_number)
                 if ret["error"] is None:
                     dev.primed = True
