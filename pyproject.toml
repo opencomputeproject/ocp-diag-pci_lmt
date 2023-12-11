@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ocptv-pci_lmt"
-version = "1.2.0"
+version = "1.2.1"
 description = "PCI Lane Margining Tool"
 readme = "README.md"
 authors = [
@@ -36,7 +36,7 @@ pci_lmt = "pci_lmt_bin.main:main"
 # Increment MINOR version when you add functionality in a backward compatible manner
 # Increment PATCH version when you make backward compatible bug fixes
 [tool.bumpver]
-current_version = "1.2.0"
+current_version = "1.2.1"
 version_pattern = "MAJOR.MINOR.PATCH"
 commit_message = "bump version {old_version} -> {new_version}"
 commit = true
