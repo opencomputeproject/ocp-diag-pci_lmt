@@ -30,8 +30,8 @@ class LmtTestInfo:  # pylint: disable=too-many-instance-attributes,too-few-publi
 class LmtLaneResult:  # pylint: disable=too-many-instance-attributes,too-few-public-methods
     """Class to hold lane level info for the LMT test."""
 
-    test_info: LmtTestInfo = LmtTestInfo()
-    device_info: LmtDeviceInfo = LmtDeviceInfo()
+    test_info: LmtTestInfo = dc.field(default_factory=LmtTestInfo)
+    device_info: LmtDeviceInfo = dc.field(default_factory=LmtDeviceInfo)
     lane: int = -1
     receiver_number: int = -1
     margin_type: str = ""
