@@ -48,7 +48,8 @@ class ConfigLmtGroup:
 
     def __str__(self) -> str:
         bdf = textwrap.indent("\n".join(self.bdf_list), " " * 16).lstrip()
-        return textwrap.dedent(f"""
+        return textwrap.dedent(
+            f"""
             {self.name}
             receiver_number: {self.receiver_number}
             bdf:
@@ -56,7 +57,8 @@ class ConfigLmtGroup:
             type: {self.margin_type}
             direction: {self.margin_direction}
             steps: {self.margin_steps}
-        """)
+        """
+        )
 
     @staticmethod
     def from_json(data: ty.Dict[str, ty.Any]) -> "ConfigLmtGroup":
@@ -77,11 +79,13 @@ class PlatformConfig:
 
     def __str__(self) -> str:
         groups = textwrap.indent("".join(str(g) for g in self.lmt_groups), " " * 16).lstrip()
-        return textwrap.dedent(f"""
+        return textwrap.dedent(
+            f"""
             platform: {self.platform_name}
             groups:
                 {groups}
-        """)
+        """
+        )
 
     @staticmethod
     def from_json(data: ty.Dict[str, ty.Any]) -> "PlatformConfig":
