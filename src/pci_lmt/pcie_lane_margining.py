@@ -8,7 +8,7 @@ import time
 import typing as ty
 from dataclasses import dataclass
 
-from pci_lmt.constants import MARGIN_RESPONSE, PARAMETERS
+from pci_lmt.constants import MARGIN_RESPONSE
 from pci_lmt.device import PciDevice
 
 logger: logging.Logger = logging.getLogger(__name__)
