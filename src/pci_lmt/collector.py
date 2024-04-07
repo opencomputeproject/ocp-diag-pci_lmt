@@ -55,7 +55,13 @@ class PcieLmCollector:
         for dev in self.devices:
             for lane in [0]:
                 ret = dev.fetch_margin_control_capabilities(lane=lane, receiver_number=self.receiver_number)
-                if ret["error"] is None:
+
+                # Run only on devices that support Lane Margining and Independent Error Sampler.
+                # Skip if the device doesn't support independent error sampler.
+                # TODO: This requires special handling since this is INTRUSIVE:
+                # 1. Provide a special flag to force margining on these devices.
+                # 2. Modify the margining sequence to margin one lane at a time (to avoid loosing connectivity)
+                if ret["error"] is None and dev.device_info.ind_error_sampler:
                     dev.primed = True
                     logger.info(
                         "Device %s ReceiverNum %d PRIMED: %s",
@@ -64,6 +70,11 @@ class PcieLmCollector:
                         dev.device_info,
                     )
                     continue
+
+                # If the device is skipped due to the absence independent error sampler,
+                # update the error message to say so.
+                if ret["error"] is None and dev.device_info.ind_error_sampler == 0:
+                    ret["error"] = "Receiver does not support independent error sampler"
 
                 logger.warning(
                     "Device %s ReceiverNum %d NOT PRIMED: %s",
