@@ -8,7 +8,7 @@ import time
 import typing as ty
 from dataclasses import dataclass
 
-from pci_lmt.constants import MARGIN_RESPONSE, PARAMETERS
+from pci_lmt.constants import MARGIN_RESPONSE
 from pci_lmt.device import PciDevice
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -717,14 +717,6 @@ class PcieDeviceLaneMargining:
         # Margin Payload[5:0] = MErrorCount
         if receiver_number not in [*range(0x1, 0x7)]:
             return {"error": f"ERROR: StepMarginVoltageOffsetUpDownOfDefault - BAD receiver_number {receiver_number}"}
-
-        if steps not in [
-            *range(
-                PARAMETERS["NumVoltageSteps"].min,
-                PARAMETERS["NumVoltageSteps"].max + 1,
-            )
-        ]:
-            return {"error": f"ERROR: StepMarginVoltageOffsetUpDownOfDefault - BAD Steps {steps}"}
 
         if up_down in (0, 1):
             margin_payload = up_down << 6 | steps
