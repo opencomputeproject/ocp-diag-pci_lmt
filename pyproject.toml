@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ocptv-pci_lmt"
-version = "1.2.1"
+version = "1.3.0"
 description = "PCI Lane Margining Tool"
 readme = "README.md"
 authors = [
@@ -14,12 +14,12 @@ license = { file = "LICENSE" }
 classifiers = [
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.8",
     "Topic :: System :: Hardware",
 ]
 keywords = ["ocp", "ocptv", "pci", "pcie", "lmt"]
 dependencies = []
-requires-python = ">=3.9"
+requires-python = ">=3.8"
 
 [project.optional-dependencies]
 dev = ["black", "bumpver", "isort", "pylint", "mypy", "build", "twine"]
@@ -36,7 +36,7 @@ pci_lmt = "pci_lmt_bin.main:main"
 # Increment MINOR version when you add functionality in a backward compatible manner
 # Increment PATCH version when you make backward compatible bug fixes
 [tool.bumpver]
-current_version = "1.2.1"
+current_version = "1.3.0"
 version_pattern = "MAJOR.MINOR.PATCH"
 commit_message = "bump version {old_version} -> {new_version}"
 commit = true

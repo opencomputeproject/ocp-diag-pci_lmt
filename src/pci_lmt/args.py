@@ -45,3 +45,9 @@ def add_common_args(parser: argparse.ArgumentParser) -> None:
         help="Print tool version and exit.",
         version="%(prog)s " + PCI_LMT_VERSION,
     )
+    parser.add_argument(
+        "--force",
+        dest="force_margin",
+        action="store_true",
+        help="Force margining on devices that doesn't support independent sampling. Default: False",
+    )

@@ -51,30 +51,37 @@ class PcieLmCollector:
             for lane in range(dev.device_info.width):
                 dev.no_command(lane=lane)
 
-    def info_lane_margin_on_device_list(self):
+    def info_lane_margin_on_device_list(self, args: argparse.Namespace):
         for dev in self.devices:
-            for lane in [0]:
-                ret = dev.goto_normal_settings(lane=lane, receiver_number=self.receiver_number)
-                ret = dev.fetch_margin_control_capabilities(lane=lane, receiver_number=self.receiver_number)
-                if ret["error"] is None:
-                    dev.primed = True
-                    logger.info(
-                        "Device %s ReceiverNum %d PRIMED: %s",
-                        dev.device_info.bdf,
-                        self.receiver_number,
-                        dev.device_info,
-                    )
-                    continue
+            # Collect lane margin capabilties only from lane-0 since it's going to be same
+            # for all lanes on that device.
+            ret = dev.goto_normal_settings(lane=0, receiver_number=self.receiver_number)
+            ret = dev.fetch_margin_control_capabilities(lane=0, receiver_number=self.receiver_number)
 
-                logger.warning(
-                    "Device %s ReceiverNum %d NOT PRIMED: %s",
-                    dev.device_info.bdf,
-                    self.receiver_number,
-                    ret["error"],
-                )
+            status_str = f"Device {dev.device_info.bdf} ReceiverNum {self.receiver_number} "
+            if ret["error"]:
+                dev.primed = False
+                status_str += f"NOT PRIMED {ret['error']}"
+            else:
+                # By default, allow devices only with independent error sampler to be primed.
+                # Allow devices with no independent error sampler to be primed only if it's forced by user.
+                if dev.device_info.ind_error_sampler:
+                    dev.primed = True
+                    status_str += "PRIMED"
+                elif args.force_margin:
+                    dev.primed = True
+                    status_str += "PRIMED (forcing margin on non-independent sampler)"
+                else:
+                    dev.primed = False
+                    status_str += "NOT PRIMED (doesn't support independent error sampler)"
+
+            if dev.primed:
+                logger.info(status_str)
+            else:
+                logger.warning(status_str)
                 # Mark all lanes faulty.
                 for lane in range(dev.device_info.width):
-                    dev.lane_errors[lane] = ret["error"]
+                    dev.lane_errors[lane] = status_str
 
     def setup_lane_margin_on_device_list(self):
         for dev in self._primed_devices:
@@ -189,19 +196,18 @@ def get_curr_timestamp() -> int:
 
 
 # pylint: disable=too-many-arguments,too-many-locals
+# FIXME: The args param should not be here, arg parsing and usage should be limited to main.py
 def collect_lmt_on_bdfs(
+    args: argparse.Namespace,
     hostname,
     host_id,
     model_name,
     bdf_list,
     receiver_number: int = 0x1,
-    error_count_limit: int = 50,
     left_right_none: int = 0,
     up_down=None,
     steps: int = 13,
     voltage_or_timing: str = "TIMING",
-    dwell_time: int = 5,
-    annotation: str = "",
 ) -> ty.List[LmtLaneResult]:
     # Gather test level info.
     test_info = LmtTestInfo()
@@ -210,31 +216,31 @@ def collect_lmt_on_bdfs(
     test_info.host_id = host_id
     test_info.hostname = hostname
     test_info.model_name = model_name
-    test_info.dwell_time_secs = dwell_time
-    test_info.error_count_limit = error_count_limit
+    test_info.dwell_time_secs = args.dwell_time
+    test_info.error_count_limit = args.error_count_limit
     test_info.test_version = PCI_LMT_VERSION
-    test_info.annotation = annotation
+    test_info.annotation = args.annotation
 
     logger.info("%s", test_info)
     devices = PcieLmCollector(bdf_list)
 
     devices.sampler_setup(
         receiver_number=receiver_number,
-        error_count_limit=error_count_limit,
+        error_count_limit=args.error_count_limit,
         left_right_none=left_right_none,
         up_down=up_down,
         steps=steps,
         voltage_or_timing=voltage_or_timing,
     )
     devices.no_command_on_device_list()
-    devices.info_lane_margin_on_device_list()
+    devices.info_lane_margin_on_device_list(args)
     devices.no_command_on_device_list()
     devices.clear_error_log_on_device_list()
     devices.normal_settings_on_device_list()
     devices.setup_lane_margin_on_device_list()
 
     start_time = time.time()
-    time.sleep(dwell_time)
+    time.sleep(args.dwell_time)
     results = devices.collect_lane_margin_on_device_list(
         voltage_or_timing=devices.voltage_or_timing,
         steps=devices.steps,
@@ -260,7 +266,7 @@ def run_lmt(args: argparse.Namespace, config: PlatformConfig, host: HostInfo, re
     logger.info("Loading config: %s", config)
 
     for group in config.lmt_groups:
-        annotation = args.annotation if args.annotation else group.name
+        args.annotation = args.annotation if args.annotation else group.name
         left_right_none, up_down = group.margin_directions_tuple
         # Loop through each step running LMT on all BDFs.
         for step in group.margin_steps:
@@ -276,18 +282,16 @@ def run_lmt(args: argparse.Namespace, config: PlatformConfig, host: HostInfo, re
                 args.dwell_time,
             )
             results = collect_lmt_on_bdfs(
+                args=args,
                 hostname=host.hostname,
                 host_id=host.host_id,
                 model_name=host.model_name,
                 bdf_list=bdf_list,
                 receiver_number=receiver_number,
-                error_count_limit=args.error_count_limit,
                 left_right_none=left_right_none,
                 up_down=up_down,
                 steps=step,
                 voltage_or_timing=margin_type,
-                dwell_time=args.dwell_time,
-                annotation=annotation,
             )
             for result in results:
                 logger.info(result)
