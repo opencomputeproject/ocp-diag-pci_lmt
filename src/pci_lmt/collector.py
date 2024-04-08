@@ -61,7 +61,7 @@ class PcieLmCollector:
             status_str = f"Device {dev.device_info.bdf} ReceiverNum {self.receiver_number} "
             if ret["error"]:
                 dev.primed = False
-                status_str += f"NOT PRIMED (ret["error"])"
+                status_str += f"NOT PRIMED {ret["error"]}"
             else:
                 # By default, allow devices only with independent error sampler to be primed.
                 # Allow devices with no independent error sampler to be primed only if it's forced by user.
