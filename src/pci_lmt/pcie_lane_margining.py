@@ -6,6 +6,7 @@
 import logging
 import time
 import typing as ty
+from typing import List
 from dataclasses import dataclass
 
 from pci_lmt.constants import MARGIN_RESPONSE
@@ -104,7 +105,7 @@ class PcieDeviceLaneMargining:
 
         # Place holder to store the errors encountered on each lane.
         # This is checked in each function call (via handle_lane_status decorator).
-        self.lane_errors = [None] * self.device_info.width
+        self.lane_errors: List[str] = [""] * self.device_info.width
 
     @handle_lane_status
     def write_margining_lane_control_register(
