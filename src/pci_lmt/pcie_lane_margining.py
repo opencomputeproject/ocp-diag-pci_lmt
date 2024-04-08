@@ -105,7 +105,7 @@ class PcieDeviceLaneMargining:
 
         # Place holder to store the errors encountered on each lane.
         # This is checked in each function call (via handle_lane_status decorator).
-        self.lane_errors : List[Text] = [""] * self.device_info.width
+        self.lane_errors: List[Text] = [""] * self.device_info.width
 
     @handle_lane_status
     def write_margining_lane_control_register(
