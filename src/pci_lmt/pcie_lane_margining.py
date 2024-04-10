@@ -22,17 +22,17 @@ TIMEOUT = 0.5  # seconds
 def handle_lane_status(method: ty.Callable):
     def wrapper(self: "PcieDeviceLaneMargining", lane: int, *args, **kwargs):
         # Skip invoking the function if the device is faulty.
-        if self.device_error is not None:
+        if self.device_error:
             return {"error": self.device_error}
 
         # Skip invoking the function if the lane is already faulty.
         # Return the first error encountered.
-        if self.lane_errors[lane] is not None:
+        if self.lane_errors[lane]:
             return {"error": self.lane_errors[lane]}
 
         # Invoke the function and update the lane_errors if the function failed.
         ret = method(self, lane, *args, **kwargs)
-        if ret["error"] is not None:
+        if ret["error"]:
             logger.warning(f"{method} failed for BDF {self.device.bdf} lane {lane}: {ret['error']}")
             self.lane_errors[lane] = ret["error"]
         return ret
