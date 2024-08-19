@@ -70,7 +70,7 @@ class Reporter:
     def __init__(self):
         pass
 
-    def start_run(self, host: HostInfo, version:str) -> None:
+    def start_run(self, host: HostInfo, version: str) -> None:
         pass
 
     def end_run(self) -> None:
@@ -103,12 +103,14 @@ class CsvStdoutReporter(Reporter):
 
         print(row)
 
+
 class OctTvOutputReporter(Reporter):
     def __init__(self):
         # TODO(sksekar): Add support for saving to file.
-        pass
+        self._run: tv.TestRun = None
+        self._step: tv.TestStep = None
 
-    def start_run(self, host: HostInfo, version:str) -> None:
+    def start_run(self, host: HostInfo, version: str) -> None:
         # TODO(sksekar): Add support for HardwareInfo using PlatformConfig.
         self._run = tv.TestRun(name="pci_lmt", version=version)
         dut = tv.Dut(id=host.host_id, name=host.hostname)

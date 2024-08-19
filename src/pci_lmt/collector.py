@@ -109,6 +109,7 @@ class PcieLmCollector:
                     receiver_number=ty.cast(int, self.receiver_number),
                     step=steps,
                 )
+                stepper = {}
                 if voltage_or_timing == "TIMING":
                     # FIXME: move this string construction in a separate method; or better make it
                     # into a typed enum
