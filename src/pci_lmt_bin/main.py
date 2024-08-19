@@ -17,7 +17,12 @@ from pci_lmt import collector
 from pci_lmt.args import add_common_args
 from pci_lmt.config import read_platform_config
 from pci_lmt.host import HostInfo
-from pci_lmt.results import CsvStdoutReporter, JsonStdoutReporter, Reporter
+from pci_lmt.results import (
+    CsvStdoutReporter,
+    JsonStdoutReporter,
+    OctTvOutputReporter,
+    Reporter,
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -33,9 +38,9 @@ def parse_args() -> argparse.Namespace:
         "-o",
         dest="output",
         type=str,
-        help="Output format. Supported formats: json, csv. Default: json",
+        help="Output format. Supported formats: json, csv, ocp. Default: json",
         default="json",
-        choices=["json", "csv"],
+        choices=["json", "csv", "ocp"],
     )
     add_common_args(parser)
 
@@ -58,6 +63,8 @@ def main() -> None:
         reporter = JsonStdoutReporter()
     elif args.output == "csv":
         reporter = CsvStdoutReporter()
+    elif args.output == "ocp":
+        reporter = OctTvOutputReporter()
 
     collector.run_lmt(
         args=args,
