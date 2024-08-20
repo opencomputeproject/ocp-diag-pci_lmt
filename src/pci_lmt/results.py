@@ -122,6 +122,9 @@ class OcptvReporter(Reporter):
 
     @contextmanager
     def start_step(self, name: str):
+        if self._step:
+            raise RuntimeError("Cannot start a new step before ending the previous one.")
+
         # TODO(sksekar): Add support for validators.
         self._step = self._run.add_step(name=name)
         try:
@@ -130,7 +133,12 @@ class OcptvReporter(Reporter):
             self._step.end(status=e.status)
         else:
             self._step.end(status=TestStatus.COMPLETE)
+        finally:
+            self._step = None
 
     def write(self, result: LmtLaneResult) -> None:
+        if not self._step:
+            raise RuntimeError("Cannot write results before starting a step.")
+
         meas_name = f"BDF:{result.device_info.bdf} Lane:{result.lane}"
         self._step.add_measurement(name=meas_name, value=result.ber)
