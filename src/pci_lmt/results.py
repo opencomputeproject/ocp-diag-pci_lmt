@@ -6,9 +6,11 @@
 import dataclasses as dc
 import json
 import typing as ty
+from contextlib import contextmanager
 
 import ocptv.output as tv
-from ocptv.output import TestResult, TestStatus
+from ocptv.output import TestResult, TestRunError, TestStatus, TestStepError
+from pci_lmt import __version__ as PCI_LMT_VERSION
 from pci_lmt.host import HostInfo
 from pci_lmt.pcie_lane_margining import LmtDeviceInfo
 
@@ -70,17 +72,15 @@ class Reporter:
     def __init__(self):
         pass
 
-    def start_run(self, host: HostInfo, version: str) -> None:
-        pass
+    @contextmanager
+    def start_run(self, host: HostInfo):
+        # pylint: disable=unused-argument
+        yield
 
-    def end_run(self) -> None:
-        pass
-
-    def start_step(self, name: str) -> None:
-        pass
-
-    def end_step(self) -> None:
-        pass
+    @contextmanager
+    def start_step(self, name: str):
+        # pylint: disable=unused-argument
+        yield
 
     def write(self, _result: LmtLaneResult) -> None:
         pass
@@ -104,30 +104,32 @@ class CsvStdoutReporter(Reporter):
         print(row)
 
 
-class OctTvOutputReporter(Reporter):
+class OcptvReporter(Reporter):
     def __init__(self):
-        # TODO(sksekar): Add support for saving to file.
-        self._run: tv.TestRun = None
-        self._step: tv.TestStep = None
+        self._run = tv.TestRun(name="pci_lmt", version=PCI_LMT_VERSION)
+        self._step = None
 
-    def start_run(self, host: HostInfo, version: str) -> None:
+    @contextmanager
+    def start_run(self, host: HostInfo):
         # TODO(sksekar): Add support for HardwareInfo using PlatformConfig.
-        self._run = tv.TestRun(name="pci_lmt", version=version)
         dut = tv.Dut(id=host.host_id, name=host.hostname)
-        self._run.start(dut=dut)
+        try:
+            yield self._run.start(dut=dut)
+        except TestRunError as e:
+            self._run.end(status=e.status, result=e.result)
+        else:
+            self._run.end(status=TestStatus.COMPLETE, result=TestResult.PASS)
 
-    def end_run(self) -> None:
-        # TODO(sksekar): Add support for checking actual result based on error count.
-        self._run.end(status=TestStatus.COMPLETE, result=TestResult.PASS)
-
-    def start_step(self, name: str) -> None:
+    @contextmanager
+    def start_step(self, name: str):
         # TODO(sksekar): Add support for validators.
         self._step = self._run.add_step(name=name)
-        self._step.start()
-
-    def end_step(self) -> None:
-        # TODO(sksekar): Add support for deducing results using validators.
-        self._step.end(status=TestStatus.COMPLETE)
+        try:
+            yield self._step.start()
+        except TestStepError as e:
+            self._step.end(status=e.status)
+        else:
+            self._step.end(status=TestStatus.COMPLETE)
 
     def write(self, result: LmtLaneResult) -> None:
         meas_name = f"BDF:{result.device_info.bdf} Lane:{result.lane}"

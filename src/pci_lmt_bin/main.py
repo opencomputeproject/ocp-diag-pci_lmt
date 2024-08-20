@@ -20,7 +20,7 @@ from pci_lmt.host import HostInfo
 from pci_lmt.results import (
     CsvStdoutReporter,
     JsonStdoutReporter,
-    OctTvOutputReporter,
+    OcptvReporter,
     Reporter,
 )
 
@@ -64,7 +64,7 @@ def main() -> None:
     elif args.output == "csv":
         reporter = CsvStdoutReporter()
     elif args.output == "ocp":
-        reporter = OctTvOutputReporter()
+        reporter = OcptvReporter()
 
     collector.run_lmt(
         args=args,

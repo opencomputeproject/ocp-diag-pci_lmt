@@ -265,41 +265,36 @@ def run_lmt(args: argparse.Namespace, config: PlatformConfig, host: HostInfo, re
     """Runs LMT tests on all the interfaces listed in the platform_config."""
 
     logger.info("Loading config: %s", config)
-    reporter.start_run(host, PCI_LMT_VERSION)
-
-    for group in config.lmt_groups:
-        args.annotation = args.annotation if args.annotation else group.name
-        left_right_none, up_down = group.margin_directions_tuple
-        # Loop through each step running LMT on all BDFs.
-        for step in group.margin_steps:
-            reporter.start_step(name=f"Rcvr:{group.receiver_number} Step:{step} Ann:{args.annotation}")
-            bdf_list = group.bdf_list
-            margin_type = group.margin_type
-            receiver_number = group.receiver_number
-            logger.info(
-                "Running %s margining test on %d BDFs Rx %d Step %d for %d seconds.",
-                margin_type,
-                len(bdf_list),
-                receiver_number,
-                step,
-                args.dwell_time,
-            )
-            results = collect_lmt_on_bdfs(
-                args=args,
-                hostname=host.hostname,
-                host_id=host.host_id,
-                model_name=host.model_name,
-                bdf_list=bdf_list,
-                receiver_number=receiver_number,
-                left_right_none=left_right_none,
-                up_down=up_down,
-                steps=step,
-                voltage_or_timing=margin_type,
-            )
-            for result in results:
-                logger.info(result)
-                reporter.write(result)
-
-            reporter.end_step()
-
-    reporter.end_run()
+    with reporter.start_run(host):
+        for group in config.lmt_groups:
+            args.annotation = args.annotation if args.annotation else group.name
+            left_right_none, up_down = group.margin_directions_tuple
+            # Loop through each step running LMT on all BDFs.
+            for step in group.margin_steps:
+                with reporter.start_step(name=f"Rcvr:{group.receiver_number} Step:{step} Ann:{args.annotation}"):
+                    bdf_list = group.bdf_list
+                    margin_type = group.margin_type
+                    receiver_number = group.receiver_number
+                    logger.info(
+                        "Running %s margining test on %d BDFs Rx %d Step %d for %d seconds.",
+                        margin_type,
+                        len(bdf_list),
+                        receiver_number,
+                        step,
+                        args.dwell_time,
+                    )
+                    results = collect_lmt_on_bdfs(
+                        args=args,
+                        hostname=host.hostname,
+                        host_id=host.host_id,
+                        model_name=host.model_name,
+                        bdf_list=bdf_list,
+                        receiver_number=receiver_number,
+                        left_right_none=left_right_none,
+                        up_down=up_down,
+                        steps=step,
+                        voltage_or_timing=margin_type,
+                    )
+                    for result in results:
+                        logger.info(result)
+                        reporter.write(result)
