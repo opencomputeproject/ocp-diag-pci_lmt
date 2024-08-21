@@ -20,6 +20,7 @@ class LmtTestInfo:  # pylint: disable=too-many-instance-attributes,too-few-publi
     hostname: str = ""
     model_name: str = ""
     dwell_time_secs: int = -1
+    margin_time_secs: int = -1
     elapsed_time_secs: float = -1
     error_count_limit: int = -1
     test_version: str = ""

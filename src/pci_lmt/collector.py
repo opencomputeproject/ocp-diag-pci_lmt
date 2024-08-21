@@ -95,7 +95,7 @@ class PcieLmCollector:
     # FIXME: `voltage_or_timing` should be an enum; dont use strings for magic constants
     # pylint: disable=too-many-branches
     def collect_lane_margin_on_device_list(
-        self, voltage_or_timing="TIMING", steps=16, up_down=0, left_right_none=0
+        self, voltage_or_timing="TIMING", steps=16, up_down=0, left_right_none=0, margin_time=1
     ) -> ty.List[LmtLaneResult]:
         """Returns the Lane Margining Test result from all lanes as a list."""
         results = []
@@ -140,6 +140,8 @@ class PcieLmCollector:
                         up_down=up_down,
                         steps=steps,
                     )
+
+                time.sleep(margin_time)
 
                 sampler = dev.fetch_sample_count(lane=lane, receiver_number=self.receiver_number)
                 if stepper["error"] or sampler["error"]:
@@ -217,6 +219,7 @@ def collect_lmt_on_bdfs(
     test_info.hostname = hostname
     test_info.model_name = model_name
     test_info.dwell_time_secs = args.dwell_time
+    test_info.margin_time_secs = args.margin_time
     test_info.error_count_limit = args.error_count_limit
     test_info.test_version = PCI_LMT_VERSION
     test_info.annotation = args.annotation
@@ -246,6 +249,7 @@ def collect_lmt_on_bdfs(
         steps=devices.steps,
         up_down=devices.up_down,
         left_right_none=devices.left_right_none,
+        margin_time=args.margin_time
     )
     stop_time = time.time()
     test_info.elapsed_time_secs = stop_time - start_time
