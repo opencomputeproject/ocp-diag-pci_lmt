@@ -249,7 +249,7 @@ def collect_lmt_on_bdfs(
         steps=devices.steps,
         up_down=devices.up_down,
         left_right_none=devices.left_right_none,
-        margin_time=args.margin_time
+        margin_time=args.margin_time,
     )
     stop_time = time.time()
     test_info.elapsed_time_secs = stop_time - start_time
