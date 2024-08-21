@@ -675,7 +675,7 @@ class PcieDeviceLaneMargining:
         # Margin Payload[5:0] = MErrorCount
         ret = self.decode_margining_lane_status_register(lane=lane)
         start_time = time.time()
-        while ret["margin_type_status"] != 0x3:
+        while ret["margin_type_status"] != 0x3 or ((ret["margin_payload_status"] & 0xC0) >> 6) != 0x2:
             ret = self.decode_margining_lane_status_register(lane=lane)
             if time.time() - start_time > TIMEOUT:
                 return {"error": "ERROR: decode_StepMarginTimingOffsetRightLeftOfDefault - timedout"}
@@ -759,7 +759,7 @@ class PcieDeviceLaneMargining:
         # Margin Payload[5:0] = MErrorCount
         ret = self.decode_margining_lane_status_register(lane=lane)
         start_time = time.time()
-        while ret["margin_type_status"] != 0x4:
+        while ret["margin_type_status"] != 0x4 or ((ret["margin_payload_status"] & 0xC0) >> 6) != 0x2:
             ret = self.decode_margining_lane_status_register(lane=lane)
             if time.time() - start_time > TIMEOUT:
                 return {"error": "ERROR: decode_StepMarginVoltageOffsetUpDownOfDefault - timedout"}
