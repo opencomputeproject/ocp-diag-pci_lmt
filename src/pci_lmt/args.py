@@ -26,6 +26,13 @@ def add_common_args(parser: argparse.ArgumentParser) -> None:
         default=5,
     )
     parser.add_argument(
+        "-m",
+        dest="margin_time",
+        type=int,
+        help="Amount of time (in seconds) to stay during margin. Default: 1",
+        default=1,
+    )
+    parser.add_argument(
         "-a",
         dest="annotation",
         type=str,
