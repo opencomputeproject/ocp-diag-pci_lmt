@@ -83,7 +83,7 @@ class PcieLmCollector:
                 for lane in range(dev.device_info.width):
                     dev.lane_errors[lane] = status_str
 
-    def setup_lane_margin_on_device_list(self):
+    def setup_lane_margin_on_device_list(self, voltage_or_timing="TIMING", steps=16, up_down=0, left_right_none=0):
         for dev in self._primed_devices:
             for lane in range(dev.device_info.width):
                 dev.set_error_count_limit(
@@ -91,6 +91,21 @@ class PcieLmCollector:
                     receiver_number=self.receiver_number,
                     error_count_limit=self.error_count_limit,
                 )
+
+                if voltage_or_timing == "TIMING":
+                    dev.step_margin_timing_offset_right_left_of_default(
+                        lane=lane,
+                        receiver_number=self.receiver_number,
+                        left_right_none=left_right_none,
+                        steps=steps,
+                    )
+                else:
+                    dev.step_margin_voltage_offset_up_down_of_default(
+                        lane=lane,
+                        receiver_number=self.receiver_number,
+                        up_down=up_down,
+                        steps=steps,
+                    )
 
     # FIXME: `voltage_or_timing` should be an enum; dont use strings for magic constants
     # pylint: disable=too-many-branches
@@ -109,7 +124,7 @@ class PcieLmCollector:
                     receiver_number=ty.cast(int, self.receiver_number),
                     step=steps,
                 )
-                stepper = {}
+
                 if voltage_or_timing == "TIMING":
                     # FIXME: move this string construction in a separate method; or better make it
                     # into a typed enum
@@ -120,14 +135,8 @@ class PcieLmCollector:
                         lane_result.margin_type += "left"
                     else:
                         lane_result.margin_type += "none"
-                    stepper = dev.step_margin_timing_offset_right_left_of_default(
-                        lane=lane,
-                        receiver_number=self.receiver_number,
-                        left_right_none=left_right_none,
-                        steps=steps,
-                    )
-
-                if voltage_or_timing == "VOLTAGE":
+                    margin_status = dev.decode_step_margin_timing_offset_right_left_of_default(lane=lane)
+                else:
                     lane_result.margin_type = "voltage_"
                     if up_down == 0:
                         lane_result.margin_type += "up"
@@ -135,30 +144,19 @@ class PcieLmCollector:
                         lane_result.margin_type += "down"
                     else:
                         lane_result.margin_type += "none"
-                    stepper = dev.step_margin_voltage_offset_up_down_of_default(
-                        lane=lane,
-                        receiver_number=self.receiver_number,
-                        up_down=up_down,
-                        steps=steps,
-                    )
+                    margin_status = dev.decode_step_margin_voltage_offset_up_down_of_default(lane=lane)
 
                 sampler = dev.fetch_sample_count(lane=lane, receiver_number=self.receiver_number)
-                if stepper["error"] or sampler["error"]:
+                if margin_status["error"] or sampler["error"]:
                     lane_result.error = True
-                    lane_result.error_msg = stepper["error"] if stepper["error"] else sampler["error"]
-                elif stepper["error_count"] == 0:
-                    lane_result.error = False
-                    lane_result.sample_count = sampler["sample_count"]
-                    lane_result.sample_count_bits = sampler["sample_count_bits"]
-                    lane_result.error_count = 0
-                    lane_result.ber = 0.0
+                    lane_result.error_msg = margin_status["error"] if margin_status["error"] else sampler["error"]
                 else:
                     # TODO Check if this needs to be divided by Sampling (aka, 64)
                     lane_result.error = False
                     lane_result.sample_count = sampler["sample_count"]
                     lane_result.sample_count_bits = sampler["sample_count_bits"]
-                    lane_result.error_count = stepper["error_count"]
-                    lane_result.ber = stepper["error_count"] / sampler["sample_count_bits"]
+                    lane_result.error_count = margin_status["error_count"]
+                    lane_result.ber = margin_status["error_count"] / sampler["sample_count_bits"]
 
                 results.append(lane_result)
 
@@ -238,7 +236,12 @@ def collect_lmt_on_bdfs(
     devices.no_command_on_device_list()
     devices.clear_error_log_on_device_list()
     devices.normal_settings_on_device_list()
-    devices.setup_lane_margin_on_device_list()
+    devices.setup_lane_margin_on_device_list(
+        voltage_or_timing=devices.voltage_or_timing,
+        steps=devices.steps,
+        up_down=devices.up_down,
+        left_right_none=devices.left_right_none,
+    )
 
     start_time = time.time()
     time.sleep(args.dwell_time)
