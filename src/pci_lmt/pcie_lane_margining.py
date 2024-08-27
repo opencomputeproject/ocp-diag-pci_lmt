@@ -631,8 +631,14 @@ class PcieDeviceLaneMargining:
         if receiver_number not in [*range(0x1, 0x7)]:
             return {"error": f"ERROR: StepMarginTimingOffsetRightLeftOfDefault - BAD receiver_number {receiver_number}"}
 
-        if left_right_none == -1:
-            margin_payload = steps
+        if not self.device_info.ind_left_right_timing:
+            if left_right_none == -1:
+                margin_payload = steps
+            else:
+                return {
+                    "error": "ERROR: StepMarginTimingOffsetRightLeftOfDefault - "
+                    "Rcvr doesn't support independent left/right margining"
+                }
         elif left_right_none in (0, 1):
             margin_payload = left_right_none << 6 | steps
         else:
@@ -673,16 +679,24 @@ class PcieDeviceLaneMargining:
         #      number of errors detected as defined in Section 8.4.4. Note that MErrorCount might be greater than
         #      Error Count Limit.
         # Margin Payload[5:0] = MErrorCount
-        ret = self.decode_margining_lane_status_register(lane=lane)
         start_time = time.time()
-        while ret["margin_type_status"] != 0x3:
+        while True:
             ret = self.decode_margining_lane_status_register(lane=lane)
+            step_margin_execution_status = (ret["margin_payload_status"] & 0xC0) >> 6
+            error_count = (ret["margin_payload_status"] & 0x3F) >> 0
+            margin_type_status = ret["margin_type_status"]
+
+            if margin_type_status == 0x3:
+                if step_margin_execution_status == 0x2:
+                    # Setup done. Margining in progress.
+                    break
+                if step_margin_execution_status == 0x3:
+                    # Unsupported operation
+                    return {"error": "ERROR: decode_StepMarginTimingOffsetRightLeftOfDefault - unsupported operation"}
+
             if time.time() - start_time > TIMEOUT:
                 return {"error": "ERROR: decode_StepMarginTimingOffsetRightLeftOfDefault - timedout"}
 
-        step_margin_execution_status = (ret["margin_payload_status"] & 0xC0) >> 6
-        error_count = (ret["margin_payload_status"] & 0x3F) >> 0
-        margin_type_status = ret["margin_type_status"]
         return {
             "error": None,
             "margin_type_status": margin_type_status,
@@ -719,7 +733,15 @@ class PcieDeviceLaneMargining:
         if receiver_number not in [*range(0x1, 0x7)]:
             return {"error": f"ERROR: StepMarginVoltageOffsetUpDownOfDefault - BAD receiver_number {receiver_number}"}
 
-        if up_down in (0, 1):
+        if not self.device_info.ind_up_down_voltage:
+            if up_down == -1:
+                margin_payload = steps
+            else:
+                return {
+                    "error": "ERROR: StepMarginVoltageOffsetUpDownOfDefault - "
+                    "Rcvr doesn't support independent up/down margining"
+                }
+        elif up_down in (0, 1):
             margin_payload = up_down << 6 | steps
         else:
             return {"error": f"ERROR: StepMarginVoltageOffsetUpDownOfDefault - BAD UpDown {up_down}"}
@@ -759,14 +781,23 @@ class PcieDeviceLaneMargining:
         # Margin Payload[5:0] = MErrorCount
         ret = self.decode_margining_lane_status_register(lane=lane)
         start_time = time.time()
-        while ret["margin_type_status"] != 0x4:
+        while True:
             ret = self.decode_margining_lane_status_register(lane=lane)
+            step_margin_execution_status = (ret["margin_payload_status"] & 0xC0) >> 6
+            error_count = (ret["margin_payload_status"] & 0x3F) >> 0
+            margin_type_status = ret["margin_type_status"]
+
+            if margin_type_status == 0x4:
+                if step_margin_execution_status == 0x2:
+                    # Setup done. Margining in progress.
+                    break
+                if step_margin_execution_status == 0x3:
+                    # Unsupported operation
+                    return {"error": "ERROR: decode_StepMarginVoltageOffsetUpDownOfDefault - unsupported operation"}
+
             if time.time() - start_time > TIMEOUT:
                 return {"error": "ERROR: decode_StepMarginVoltageOffsetUpDownOfDefault - timedout"}
 
-        step_margin_execution_status = (ret["margin_payload_status"] & 0xC0) >> 6
-        error_count = (ret["margin_payload_status"] & 0x3F) >> 0
-        margin_type_status = ret["margin_type_status"]
         return {
             "error": None,
             "margin_type_status": margin_type_status,
