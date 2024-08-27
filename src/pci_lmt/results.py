@@ -21,9 +21,15 @@ class LmtTestInfo:  # pylint: disable=too-many-instance-attributes,too-few-publi
 
     run_id: str = ""
     timestamp: int = -1
-    host_id: int = -1
+    host_id: str = ""
     hostname: str = ""
     model_name: str = ""
+    receiver_number: int = -1
+    margin_type: str = ""
+    left_right_none: int = -1
+    up_down: int = -1
+    step: int = -1
+    force_margin: bool = False
     dwell_time_secs: int = -1
     elapsed_time_secs: float = -1
     error_count_limit: int = -1
