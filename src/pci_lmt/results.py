@@ -13,6 +13,7 @@ from ocptv.output import TestResult, TestRunError, TestStatus, TestStepError
 from pci_lmt import __version__ as PCI_LMT_VERSION
 from pci_lmt.host import HostInfo
 from pci_lmt.pcie_lane_margining import LmtDeviceInfo
+from pci_lmt.config import MarginType
 
 
 @dc.dataclass
@@ -25,9 +26,7 @@ class LmtTestInfo:  # pylint: disable=too-many-instance-attributes,too-few-publi
     hostname: str = ""
     model_name: str = ""
     receiver_number: int = -1
-    margin_type: str = ""
-    left_right_none: int = -1
-    up_down: int = -1
+    margin_type: MarginType = MarginType.VOLTAGE_NONE
     step: int = -1
     force_margin: bool = False
     dwell_time_secs: int = -1

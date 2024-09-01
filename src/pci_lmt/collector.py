@@ -10,7 +10,7 @@ import time
 import typing as ty
 
 from pci_lmt import __version__ as PCI_LMT_VERSION
-from pci_lmt.config import PlatformConfig
+from pci_lmt.config import MarginType, PlatformConfig
 from pci_lmt.device import PciDevice
 from pci_lmt.host import HostInfo
 from pci_lmt.pcie_lane_margining import PcieDeviceLaneMargining
@@ -27,8 +27,6 @@ class PcieLmCollector:
         # will handle this in a separate PR.
         self.receiver_number = test_info.receiver_number
         self.error_count_limit = test_info.error_count_limit
-        self.left_right_none = test_info.left_right_none
-        self.up_down = test_info.up_down
         self.step = test_info.step
         self.margin_type = test_info.margin_type
         self.force_margin = test_info.force_margin
@@ -97,38 +95,23 @@ class PcieLmCollector:
                     error_count_limit=self.error_count_limit,
                 )
 
-                if self.margin_type == "TIMING":
+                if self.margin_type in (MarginType.TIMING_LEFT, MarginType.TIMING_RIGHT, MarginType.TIMING_NONE):
                     dev.step_margin_timing_offset_right_left_of_default(
                         lane=lane,
                         receiver_number=self.receiver_number,
-                        left_right_none=self.left_right_none,
+                        margin_type=self.margin_type,
                         steps=self.step,
                     )
                 else:
                     dev.step_margin_voltage_offset_up_down_of_default(
                         lane=lane,
                         receiver_number=self.receiver_number,
-                        up_down=self.up_down,
+                        margin_type=self.margin_type,
                         steps=self.step,
                     )
 
-    # FIXME: `margin_type` should be an enum; dont use strings for magic constants
     def collect_lane_margin_on_device_list(self) -> ty.List[LmtLaneResult]:
         """Returns the Lane Margining Test result from all lanes as a list."""
-
-        def get_timing_margin_type_as_str() -> str:
-            if self.left_right_none == 0:
-                return "timing_right"
-            if self.left_right_none == 1:
-                return "timing_left"
-            return "timing_none"
-
-        def get_voltage_margin_type_as_str() -> str:
-            if self.up_down == 0:
-                return "voltage_up"
-            if self.up_down == 1:
-                return "voltage_down"
-            return "voltage_none"
 
         results = []
         for dev in self.devices:
@@ -140,13 +123,12 @@ class PcieLmCollector:
                     lane=lane,
                     receiver_number=ty.cast(int, self.receiver_number),
                     step=self.step,
+                    margin_type=self.margin_type.value,
                 )
 
-                if self.margin_type == "TIMING":
-                    lane_result.margin_type = get_timing_margin_type_as_str()
+                if self.margin_type in (MarginType.TIMING_LEFT, MarginType.TIMING_RIGHT, MarginType.TIMING_NONE):
                     margin_status = dev.decode_step_margin_timing_offset_right_left_of_default(lane=lane)
                 else:
-                    lane_result.margin_type = get_voltage_margin_type_as_str()
                     margin_status = dev.decode_step_margin_voltage_offset_up_down_of_default(lane=lane)
 
                 sampler = dev.fetch_sample_count(lane=lane, receiver_number=self.receiver_number)
@@ -223,7 +205,6 @@ def run_lmt(args: argparse.Namespace, config: PlatformConfig, host: HostInfo, re
             test_info.margin_type = group.margin_type
             test_info.receiver_number = group.receiver_number
             test_info.annotation = args.annotation if args.annotation else group.name
-            test_info.left_right_none, test_info.up_down = group.margin_directions_tuple
 
             # Loop through each step running LMT on all BDFs.
             for step in group.margin_steps:
