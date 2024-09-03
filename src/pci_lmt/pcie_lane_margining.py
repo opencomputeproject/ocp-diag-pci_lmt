@@ -11,6 +11,7 @@ from dataclasses import dataclass
 
 from pci_lmt.constants import MARGIN_RESPONSE
 from pci_lmt.device import PciDevice
+from pci_lmt.config import MarginType
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -603,7 +604,7 @@ class PcieDeviceLaneMargining:
 
     @handle_lane_status
     def step_margin_timing_offset_right_left_of_default(
-        self, lane: int, receiver_number: int, left_right_none: int = 0, steps: int = 6
+        self, lane: int, receiver_number: int, margin_type: MarginType, steps: int = 6
     ):
         # LeftRightNone
         # 0 indicates to move the Receiver to the right of the normal setting to be used when ind_left_right_timing = 1.
@@ -632,17 +633,19 @@ class PcieDeviceLaneMargining:
             return {"error": f"ERROR: StepMarginTimingOffsetRightLeftOfDefault - BAD receiver_number {receiver_number}"}
 
         if not self.device_info.ind_left_right_timing:
-            if left_right_none == -1:
+            if margin_type == MarginType.TIMING_NONE:
                 margin_payload = steps
             else:
                 return {
                     "error": "ERROR: StepMarginTimingOffsetRightLeftOfDefault - "
                     "Rcvr doesn't support independent left/right margining"
                 }
-        elif left_right_none in (0, 1):
-            margin_payload = left_right_none << 6 | steps
+        elif margin_type == MarginType.TIMING_RIGHT:
+            margin_payload = steps
+        elif margin_type == MarginType.TIMING_LEFT:
+            margin_payload = 1 << 6 | steps
         else:
-            return {"error": f"ERROR: StepMarginTimingOffsetRightLeftOfDefault - BAD left_right_none {left_right_none}"}
+            return {"error": f"ERROR: StepMarginTimingOffsetRightLeftOfDefault - BAD margin_type {margin_type}"}
 
         self.no_command(lane=lane)
         self.write_margining_lane_control_register(
@@ -707,7 +710,7 @@ class PcieDeviceLaneMargining:
 
     @handle_lane_status
     def step_margin_voltage_offset_up_down_of_default(
-        self, lane: int, receiver_number: int, up_down: int = 0, steps: int = 32
+        self, lane: int, receiver_number: int, margin_type: MarginType, steps: int = 32
     ):
         # UpDown
         # 0 indicates to move the Receiver to the Up from Normal.
@@ -734,17 +737,19 @@ class PcieDeviceLaneMargining:
             return {"error": f"ERROR: StepMarginVoltageOffsetUpDownOfDefault - BAD receiver_number {receiver_number}"}
 
         if not self.device_info.ind_up_down_voltage:
-            if up_down == -1:
+            if margin_type == MarginType.VOLTAGE_NONE:
                 margin_payload = steps
             else:
                 return {
                     "error": "ERROR: StepMarginVoltageOffsetUpDownOfDefault - "
                     "Rcvr doesn't support independent up/down margining"
                 }
-        elif up_down in (0, 1):
-            margin_payload = up_down << 6 | steps
+        elif margin_type == MarginType.VOLTAGE_UP:
+            margin_payload = steps
+        elif margin_type == MarginType.VOLTAGE_DOWN:
+            margin_payload = 1 << 6 | steps
         else:
-            return {"error": f"ERROR: StepMarginVoltageOffsetUpDownOfDefault - BAD UpDown {up_down}"}
+            return {"error": f"ERROR: StepMarginVoltageOffsetUpDownOfDefault - BAD margin_type {margin_type}"}
 
         self.no_command(lane=lane)
         self.write_margining_lane_control_register(

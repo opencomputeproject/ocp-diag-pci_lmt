@@ -8,43 +8,25 @@ import json
 import textwrap
 import typing as ty
 
+from enum import Enum
+
+
+class MarginType(str, Enum):
+    VOLTAGE_NONE = "voltage_none"
+    VOLTAGE_UP = "voltage_up"
+    VOLTAGE_DOWN = "voltage_down"
+    TIMING_NONE = "timing_none"
+    TIMING_RIGHT = "timing_right"
+    TIMING_LEFT = "timing_left"
+
 
 @dc.dataclass
 class ConfigLmtGroup:
     name: str
     receiver_number: int
     bdf_list: ty.List[str]
-    margin_type: ty.Union[ty.Literal["VOLTAGE"], ty.Literal["TIMING"]]
-    margin_direction: ty.Union[
-        ty.Literal["right"],
-        ty.Literal["left"],
-        ty.Literal["up"],
-        ty.Literal["down"],
-    ]
+    margin_type: MarginType
     margin_steps: ty.List[int]
-
-    # NOTE: this may need to be refactored to return some enum types; a tuple of ints
-    # is not really descriptive
-    @property
-    def margin_directions_tuple(self) -> ty.Tuple[int, int]:
-        """Returns the margin direction as a tuple."""
-        left_right_none = -1
-        up_down = -1
-        margin_info = (self.margin_type, self.margin_direction)
-        if margin_info == ("TIMING", "right"):
-            left_right_none = 0
-        elif margin_info == ("TIMING", "left"):
-            left_right_none = 1
-        elif margin_info == ("VOLTAGE", "up"):
-            up_down = 0
-        elif margin_info == ("VOLTAGE", "down"):
-            up_down = 1
-        else:
-            raise ValueError(
-                f"Invalid values for margin_type {self.margin_type} and/or margin_direction {self.margin_direction}."
-            )
-
-        return (left_right_none, up_down)
 
     def __str__(self) -> str:
         bdf = textwrap.indent("\n".join(self.bdf_list), " " * 16).lstrip()
@@ -55,19 +37,27 @@ class ConfigLmtGroup:
             bdf:
                 {bdf}
             type: {self.margin_type}
-            direction: {self.margin_direction}
             steps: {self.margin_steps}
         """
         )
 
     @staticmethod
     def from_json(data: ty.Dict[str, ty.Any]) -> "ConfigLmtGroup":
+        try:
+            input_margin_type = data["margin_type"].lower()
+            input_margin_direction = data["margin_direction"].lower()
+            margin_type = MarginType(f"{input_margin_type}_{input_margin_direction}")
+        except ValueError as e:
+            raise ValueError(
+                f"Invalid margin type: {input_margin_type} and/or direction: {input_margin_direction}. "
+                f"Valid values are: {MarginType.__members__}"
+            ) from e
+
         return ConfigLmtGroup(
             name=data["name"],
             receiver_number=data["receiver_number"],
             bdf_list=data["bdf_list"],
-            margin_type=data["margin_type"],
-            margin_direction=data["margin_direction"],
+            margin_type=margin_type,
             margin_steps=data["margin_steps"],
         )
 
