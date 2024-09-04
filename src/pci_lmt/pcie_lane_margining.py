@@ -747,7 +747,7 @@ class PcieDeviceLaneMargining:
         elif margin_type == MarginType.VOLTAGE_UP:
             margin_payload = steps
         elif margin_type == MarginType.VOLTAGE_DOWN:
-            margin_payload = 1 << 6 | steps
+            margin_payload = 1 << 7 | steps
         else:
             return {"error": f"ERROR: StepMarginVoltageOffsetUpDownOfDefault - BAD margin_type {margin_type}"}
 
