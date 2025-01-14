@@ -206,6 +206,7 @@ def run_lmt(
         test_info.error_count_limit = args.error_count_limit
         test_info.force_margin = args.force_margin
         test_info.test_version = PCI_LMT_VERSION
+        test_info.config = str(config)
 
         for group in config.lmt_groups:
             test_info.margin_type = group.margin_type
