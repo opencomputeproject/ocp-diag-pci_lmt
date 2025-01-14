@@ -34,6 +34,7 @@ class LmtTestInfo:  # pylint: disable=too-many-instance-attributes,too-few-publi
     error_count_limit: int = -1
     test_version: str = ""
     annotation: str = ""
+    config: str = ""
 
 
 @dc.dataclass
