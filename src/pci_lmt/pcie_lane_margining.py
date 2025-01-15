@@ -112,6 +112,7 @@ class PcieDeviceLaneMargining:
     def write_margining_lane_control_register(
         self,
         lane: int = 0,
+        *,
         receiver_number: int = 0x0,
         # FIXME: these magical constants should really be either named or better enums
         margin_type: int = 0x7,

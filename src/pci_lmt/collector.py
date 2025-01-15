@@ -185,8 +185,14 @@ def collect_lmt_on_bdfs(test_info: LmtTestInfo, bdf_list: ty.List[str]) -> ty.Li
 # FIXME: the args param should not be here, arg parsing and usage should be limited to main.py
 # instead, replace this with the actual inputs needed; if it's too many, a RuntimeConfig can be made
 # pylint: disable=too-many-locals
-def run_lmt(args: argparse.Namespace, config: PlatformConfig, host: HostInfo, reporter: Reporter) -> None:
+def run_lmt(
+    args: argparse.Namespace, config: PlatformConfig, host: HostInfo, reporter: Reporter
+) -> ty.List[LmtLaneResult]:
     """Runs LMT tests on all the interfaces listed in the platform_config."""
+
+    # Caller may do more post-processing on the results.
+    # So, gather all results (from individual steps x BDFs x lanes) and return to the caller.
+    all_results = []
 
     logger.info("Loading config: %s", config)
     with reporter.start_run(host):
@@ -200,6 +206,7 @@ def run_lmt(args: argparse.Namespace, config: PlatformConfig, host: HostInfo, re
         test_info.error_count_limit = args.error_count_limit
         test_info.force_margin = args.force_margin
         test_info.test_version = PCI_LMT_VERSION
+        test_info.config = str(config)
 
         for group in config.lmt_groups:
             test_info.margin_type = group.margin_type
@@ -216,3 +223,7 @@ def run_lmt(args: argparse.Namespace, config: PlatformConfig, host: HostInfo, re
                     for result in results:
                         logger.info(result)
                         reporter.write(result)
+
+                    all_results.extend(results)
+
+    return all_results
