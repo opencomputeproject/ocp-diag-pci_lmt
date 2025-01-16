@@ -140,6 +140,7 @@ class OcptvReporter(Reporter):
         else:
             self._step.end(status=TestStatus.COMPLETE)
         finally:
+            # Step context cannot be re-used outside the current scope.
             self._step = None
 
     def write(self, result: LmtLaneResult) -> None:
@@ -159,8 +160,10 @@ class AggregatedReporter(Reporter):
         stack = ExitStack()
         for reporter in self._reporters:
             stack.enter_context(reporter.start_run(host))
-        yield
-        stack.close()
+        try:
+            yield
+        finally:
+            stack.close()
 
     @contextmanager
     def start_step(self, name: str):
