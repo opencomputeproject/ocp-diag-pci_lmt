@@ -6,14 +6,14 @@
 import dataclasses as dc
 import json
 import typing as ty
-from contextlib import contextmanager
+from contextlib import contextmanager, ExitStack
 
 import ocptv.output as tv
 from ocptv.output import TestResult, TestRunError, TestStatus, TestStepError
 from pci_lmt import __version__ as PCI_LMT_VERSION
+from pci_lmt.config import MarginType
 from pci_lmt.host import HostInfo
 from pci_lmt.pcie_lane_margining import LmtDeviceInfo
-from pci_lmt.config import MarginType
 
 
 @dc.dataclass
@@ -148,3 +148,28 @@ class OcptvReporter(Reporter):
 
         meas_name = f"BDF:{result.device_info.bdf} Lane:{result.lane}"
         self._step.add_measurement(name=meas_name, value=result.ber)
+
+
+class AggregatedReporter(Reporter):
+    def __init__(self, reporters: ty.List[Reporter]):
+        self._reporters = reporters
+
+    @contextmanager
+    def start_run(self, host: HostInfo):
+        stack = ExitStack()
+        for reporter in self._reporters:
+            stack.enter_context(reporter.start_run(host))
+        yield
+        stack.close()
+
+    @contextmanager
+    def start_step(self, name: str):
+        stack = ExitStack()
+        for reporter in self._reporters:
+            stack.enter_context(reporter.start_step(name))
+        yield
+        stack.close()
+
+    def write(self, result: LmtLaneResult) -> None:
+        for reporter in self._reporters:
+            reporter.write(result)
